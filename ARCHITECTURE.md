@@ -2,7 +2,7 @@
 
 ## Status
 
-**Implemented prototype architecture through Phase 5, with Phase 6 checks underway.** The submitted `prd.md` remains the requirements reference. This document records the current application design; Phase 7 deployment remains separate work.
+**Implemented prototype architecture with a Vercel production deployment; Phase 6 evidence remains incomplete.** The submitted `prd.md` remains the requirements reference. This document records the current application design and deployment setup.
 
 ## 1. Architecture decision
 

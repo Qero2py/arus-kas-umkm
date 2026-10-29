@@ -6,7 +6,7 @@ This is a capstone prototype. The cash difference is not accounting profit, and 
 
 ## Stack
 
-Next.js 16, React 19, Tailwind CSS 4, Supabase Auth and PostgreSQL with Row Level Security. Vercel is the planned hosting platform.
+Next.js 16, React 19, Tailwind CSS 4, Supabase Auth and PostgreSQL with Row Level Security. The prototype is deployed on Vercel at [arus-kas-umkm.vercel.app](https://arus-kas-umkm.vercel.app).
 
 ## Local setup
 
