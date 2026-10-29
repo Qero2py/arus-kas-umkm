@@ -1,0 +1,72 @@
+name: PRD seven-day availability
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write # Disable this workflow after the seven-day window.
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check measurement window
+        id: window
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          start=$(date -u -d '2026-10-29T08:17:00Z' +%s)
+          end=$(date -u -d '2026-11-05T08:17:00Z' +%s)
+          now=$(date -u +%s)
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo 'active=true' >> "$GITHUB_OUTPUT"
+            echo 'Manual preflight; exclude this run from the 168 scheduled slots.'
+          elif (( now < start )); then
+            echo 'active=false' >> "$GITHUB_OUTPUT"
+            echo 'Measurement window has not started.'
+          elif (( now >= end )); then
+            echo 'active=false' >> "$GITHUB_OUTPUT"
+            response=$(curl -sS -o /dev/null -w '%{http_code}' -X PUT \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/availability.yml/disable")
+            [[ "$response" == "204" ]] || { echo "Could not disable workflow: HTTP $response"; exit 1; }
+            echo 'Seven-day window ended; workflow disabled.'
+          else
+            echo 'active=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Probe public login
+        if: steps.window.outputs.active == 'true'
+        id: probe
+        run: |
+          body=$(mktemp)
+          set +e
+          result=$(curl -sS -L --connect-timeout 10 --max-time 30 --retry 0 \
+            -o "$body" -w '%{http_code} %{time_total}' \
+            'https://arus-kas-umkm.vercel.app/login')
+          curl_exit=$?
+          set -e
+          read -r status duration <<< "$result"
+          status=${status:-000}
+          status_number=$((10#$status))
+          duration=${duration:-0}
+          marker=false
+          if grep -Fq 'Masuk ke Arus' "$body"; then marker=true; fi
+          checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          printf '{"checked_at":"%s","event":"%s","status_code":%s,"curl_exit":%s,"duration_seconds":%s,"login_marker":%s}\n' \
+            "$checked_at" "$GITHUB_EVENT_NAME" "$status_number" "$curl_exit" "$duration" "$marker" > availability-result.json
+          cat availability-result.json
+          [[ "$curl_exit" == "0" && "$status" == "200" && "$marker" == "true" ]]
+
+      - name: Keep probe evidence
+        if: always() && steps.window.outputs.active == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: availability-${{ github.run_id }}
+          path: availability-result.json
+          retention-days: 14
