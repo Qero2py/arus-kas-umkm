@@ -1,10 +1,12 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { OnboardingView } from "@/components/onboarding-view";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { ownerContext } from "@/lib/supabase/workspace";
 
 async function OnboardingContent() {
+  await connection();
   const context = await ownerContext();
   if (context.status === "unauthorized") redirect("/login");
   if (context.status === "ok") redirect("/dashboard");
