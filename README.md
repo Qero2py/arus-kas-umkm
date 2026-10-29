@@ -23,6 +23,8 @@ Without Supabase environment variables, the app opens in demo mode with sample d
 - [ARCHITECTURE.md](ARCHITECTURE.md): implementation structure and design decisions.
 - [CASH_RULES.md](CASH_RULES.md): balance, obligation, and projection rules.
 - [PHASE6_REVIEW.md](PHASE6_REVIEW.md): internal checks and remaining PRD evidence.
+- [PERFORMANCE_REVIEW.md](PERFORMANCE_REVIEW.md): deployed speed measurement and raw samples.
+- [AVAILABILITY_MONITOR.md](AVAILABILITY_MONITOR.md): seven-day hourly measurement window and method.
 - [USABILITY_REVIEW.md](USABILITY_REVIEW.md): usability test tasks.
 
 ## Checks
