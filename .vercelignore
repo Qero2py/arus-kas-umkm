@@ -1,0 +1,7 @@
+# Local Supabase CLI state can contain connection details.
+supabase/.temp
+supabase/.branches
+supabase/.env.keys
+
+# Local TypeScript cache is regenerated during the build.
+*.tsbuildinfo
