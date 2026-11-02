@@ -11,6 +11,7 @@ type ObligationInput = { kind: "utang" | "piutang"; party: string; description: 
 function positiveAmount(amount: number) { return Number.isSafeInteger(amount) && amount > 0; }
 function nonnegativeAmount(amount: number) { return Number.isSafeInteger(amount) && amount >= 0; }
 function validText(value: string, max: number) { return typeof value === "string" && value.trim().length > 0 && value.trim().length <= max; }
+function reservedPaymentCategory(category: string) { return category === "Pembayaran utang" || category === "Penerimaan piutang"; }
 function validEntry(input: EntryInput) {
   return isValidIsoDate(input.date) && input.date <= todayInJakarta()
     && validText(input.title, 80) && validText(input.category, 80) && validText(input.method, 40)
@@ -103,7 +104,7 @@ export async function removeBusinessManager(userId: string) {
 }
 
 export async function addLiveEntry(input: EntryInput) {
-  if (!validEntry(input)) return { ok: false as const };
+  if (!validEntry(input) || reservedPaymentCategory(input.category.trim())) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
   const { error } = await context.supabase.from("transactions").insert({
@@ -121,11 +122,21 @@ export async function updateLiveEntry(id: string, input: EntryInput) {
     .select("id, obligation_id, type").eq("id", id).eq("business_id", context.business.id).maybeSingle();
   if (readError || !existing) return { ok: false as const };
   if (existing.obligation_id && existing.type !== input.type) return { ok: false as const };
+  if (!existing.obligation_id && reservedPaymentCategory(input.category.trim())) return { ok: false as const };
   const correction = existing.obligation_id
     ? { entry_date: input.date, amount: input.amount, method: input.method.trim() }
     : { entry_date: input.date, title: input.title.trim(), category: input.category.trim(), type: input.type, amount: input.amount, method: input.method.trim() };
   const { error } = await context.supabase.from("transactions").update(correction).eq("id", id).eq("business_id", context.business.id);
   return error ? { ok: false as const } : updatedWorkspace();
+}
+
+export async function deleteLiveEntry(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false as const };
+  const context = await ownerContext();
+  if (context.status !== "ok") return { ok: false as const };
+  const { data, error } = await context.supabase.from("transactions")
+    .delete().eq("id", id).eq("business_id", context.business.id).select("id").maybeSingle();
+  return error || !data ? { ok: false as const } : updatedWorkspace();
 }
 
 export async function addLiveObligation(input: ObligationInput) {
@@ -154,15 +165,24 @@ export async function updateLiveObligation(id: string, input: Omit<ObligationInp
   return error || !data ? { ok: false as const } : updatedWorkspace();
 }
 
-export async function recordLivePayment(id: string, amount: number, method: string) {
-  if (!positiveAmount(amount) || !validText(method, 40)) return { ok: false as const };
+export async function deleteLiveObligation(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false as const };
+  const context = await ownerContext();
+  if (context.status !== "ok") return { ok: false as const };
+  const { data, error } = await context.supabase.from("obligations")
+    .delete().eq("id", id).eq("business_id", context.business.id).select("id").maybeSingle();
+  return error || !data ? { ok: false as const } : updatedWorkspace();
+}
+
+export async function recordLivePayment(id: string, amount: number, method: string, date: string) {
+  if (!positiveAmount(amount) || !validText(method, 40) || !isValidIsoDate(date) || date > todayInJakarta()) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
   const { data: item, error: readError } = await context.supabase.from("obligations")
     .select("id, kind, party").eq("id", id).eq("business_id", context.business.id).maybeSingle();
   if (readError || !item) return { ok: false as const };
   const { error } = await context.supabase.from("transactions").insert({
-    business_id: context.business.id, obligation_id: id, entry_date: todayInJakarta(),
+    business_id: context.business.id, obligation_id: id, entry_date: date,
     title: `${item.kind === "utang" ? "Pembayaran ke" : "Penerimaan dari"} ${item.party}`.slice(0, 80),
     category: item.kind === "utang" ? "Pembayaran utang" : "Penerimaan piutang",
     type: item.kind === "utang" ? "out" : "in", amount, method: method.trim(),

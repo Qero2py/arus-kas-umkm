@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { loadLiveWorkspace, saveLiveSettings } from "@/app/actions/workspace";
+import { saveLiveSettings } from "@/app/actions/workspace";
+import { loadInitialWorkspace } from "@/lib/supabase/initial-workspace";
 import { demoBusiness } from "@/lib/demo-data";
 import type { LiveWorkspace } from "@/lib/supabase/workspace";
 
@@ -41,7 +42,7 @@ export function DemoSettingsProvider({ children, live = false }: { children: Rea
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (live) {
-        loadLiveWorkspace().then((result) => {
+        loadInitialWorkspace().then((result) => {
           if (result.status === "unauthorized") { router.replace("/login"); return; }
           if (result.status === "onboarding") { router.replace("/onboarding"); return; }
           if (result.status !== "ok") { setStorageError("remote"); setReady(true); return; }

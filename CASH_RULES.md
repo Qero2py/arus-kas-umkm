@@ -8,7 +8,7 @@ These examples use synthetic amounts in Rupiah and `27 October 2026` as the curr
 - A seven-day period includes the current date and the six preceding calendar dates. “All dates” still stops at the current date.
 - The routine daily amount is the net of non-obligation transactions in the latest 30 calendar days, divided by **30**, including days with no recorded transaction. A projection is shown only when the recorded routine history spans at least 14 calendar days. Missing records can distort this estimate.
 - Remaining debt or receivable = original amount − linked payments or receipts. A linked payment affects actual cash once and reduces the future obligation by the same amount.
-- The scheduled forecast includes remaining receivables on their due dates; the cautious forecast excludes them. Both include remaining debts.
+- The scheduled forecast includes remaining receivables due today or later on their due dates (today's unpaid receivables enter day 1); the cautious forecast excludes them. Overdue receivables are shown separately and excluded from both forecasts. Both forecasts include remaining debts.
 - A debt is flagged from three days before its due date until it is fully paid, including overdue dates. Actual cash below the safe threshold is flagged even when there is too little history for a forecast. “Below” means strictly less than the threshold.
 
 ## Hand-calculated examples

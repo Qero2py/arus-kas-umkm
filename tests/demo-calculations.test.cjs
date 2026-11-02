@@ -58,6 +58,29 @@ test("a recorded payable payment moves cash today and removes the same future am
   assert.equal(after.points[30].cautious, before.points[30].cautious);
 });
 
+test("an unlinked debt payment would distort the forecast, while a linked one does not", () => {
+  const routine = [entry("start", "2026-10-14", "in", 300)];
+  const payment = entry("payment", DEMO_DATE, "out", 1000);
+  payment.category = "Pembayaran utang";
+  const payable = obligation("debt", "utang", "2026-10-29", 1000);
+  const unlinked = getProjection([payment, ...routine], [payable], 10_000, 7);
+  const linked = getProjection([{ ...payment, linkedObligationId: "debt" }, ...routine], [{ ...payable, settled: 1000 }], 10_000, 7);
+  assert.equal(unlinked.points[7].scheduled, 8139);
+  assert.equal(linked.points[7].scheduled, 9370);
+  assert.equal(linked.dailyNet, 10);
+  assert.equal(linked.payables, 0);
+});
+
+test("overdue receivables are reported separately and do not arrive on forecast day one", () => {
+  const overdue = obligation("late", "piutang", "2026-08-01", 5000, 1000);
+  const result = getProjection([entry("start", "2026-10-14", "in", 300)], [overdue], 1000, 7);
+  assert.equal(result.sufficient, true);
+  assert.equal(result.overdueReceivables, 4000);
+  assert.equal(result.receivables, 0);
+  assert.equal(result.points[1].scheduled, 1310);
+  assert.equal(result.points[1].cautious, 1310);
+});
+
 test("short history does not produce a forecast", () => {
   const result = getProjection(demoTransactions.filter((entry) => entry.date >= "2026-10-24"), demoObligations, 12_500_000, 30);
   assert.equal(result.sufficient, false);

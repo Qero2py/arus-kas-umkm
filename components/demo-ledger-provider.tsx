@@ -1,9 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { addLiveEntry, addLiveObligation, loadLiveWorkspace, recordLivePayment, updateLiveEntry, updateLiveObligation } from "@/app/actions/workspace";
+import { useRouter } from "next/navigation";
+import { addLiveEntry, addLiveObligation, deleteLiveEntry, deleteLiveObligation, loadLiveWorkspace, recordLivePayment, updateLiveEntry, updateLiveObligation } from "@/app/actions/workspace";
 import { createClient as createBrowserClient } from "@/lib/supabase/browser";
+import { loadInitialWorkspace } from "@/lib/supabase/initial-workspace";
 import type { LiveWorkspace } from "@/lib/supabase/workspace";
 import { DEMO_DATE, demoBusiness, demoObligations, demoTransactions, type CashEntry, type Obligation } from "@/lib/demo-data";
 import { daysBetweenDates, formatDemoDate, isValidDemoDate, isValidIsoDate } from "@/lib/demo-calculations";
@@ -22,9 +23,11 @@ type DemoLedgerContextValue = Ledger & {
   resetDemo: () => boolean;
   addEntry: (entry: EntryInput) => Promise<boolean>;
   updateEntry: (id: string, entry: EntryInput) => Promise<boolean>;
+  deleteEntry: (id: string) => Promise<boolean>;
   addObligation: (item: ObligationInput) => Promise<boolean>;
   updateObligation: (id: string, item: Omit<ObligationInput, "kind">) => Promise<boolean>;
-  recordPayment: (id: string, amount: number, method: string) => Promise<boolean>;
+  deleteObligation: (id: string) => Promise<boolean>;
+  recordPayment: (id: string, amount: number, method: string, date: string) => Promise<boolean>;
 };
 
 const initialLedger: Ledger = { entries: demoTransactions, obligations: demoObligations };
@@ -49,8 +52,6 @@ function isStoredLedger(value: unknown): value is Ledger {
 
 export function DemoLedgerProvider({ children, live = false }: { children: ReactNode; live?: boolean }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const previousPath = useRef(pathname);
   const loadingLive = useRef(false);
   const rerunLive = useRef(false);
   const [ledger, setLedger] = useState<Ledger>(live ? { entries: [], obligations: [] } : initialLedger);
@@ -74,13 +75,13 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
     window.dispatchEvent(new CustomEvent("arus:workspace-updated", { detail: workspace }));
   }, []);
 
-  const refreshLive = useCallback(async () => {
+  const refreshLive = useCallback(async (initial = false) => {
     if (loadingLive.current) { rerunLive.current = true; return; }
     loadingLive.current = true;
     do {
       rerunLive.current = false;
       try {
-        const result = await loadLiveWorkspace();
+        const result = await (initial ? loadInitialWorkspace() : loadLiveWorkspace());
         if (result.status === "unauthorized") { router.replace("/login"); break; }
         if (result.status === "onboarding") { router.replace("/onboarding"); break; }
         if (result.status !== "ok") { setStorageError("remote"); setReady(true); break; }
@@ -96,7 +97,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (live) { void refreshLive(); return; }
+      if (live) { void refreshLive(true); return; }
       let stored: string | null;
       try {
         stored = window.localStorage.getItem(storageKey);
@@ -120,13 +121,6 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }, [live, refreshLive]);
 
   useEffect(() => {
-    if (!live || previousPath.current === pathname) return;
-    previousPath.current = pathname;
-    const timer = window.setTimeout(() => { void refreshLive(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [live, pathname, refreshLive]);
-
-  useEffect(() => {
     if (!live || !businessId) return;
     const supabase = createBrowserClient();
     const refresh = () => { void refreshLive(); };
@@ -137,15 +131,19 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
       .on("postgres_changes", { event: "*", schema: "public", table: "business_members", filter: `business_id=eq.${businessId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "business_invites", filter: `business_id=eq.${businessId}` }, refresh)
       .subscribe((status) => { if (status === "SUBSCRIBED") refresh(); });
-    const onFocus = () => refresh();
-    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    let refreshTimer: number | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) return;
+      refreshTimer = window.setTimeout(() => { refreshTimer = null; refresh(); }, 150);
+    };
+    const onFocus = () => scheduleRefresh();
+    const onVisible = () => { if (document.visibilityState === "visible") scheduleRefresh(); };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
-    const interval = window.setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 15_000);
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
-      window.clearInterval(interval);
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       void supabase.removeChannel(channel);
     };
   }, [businessId, live, refreshLive]);
@@ -168,7 +166,8 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function addEntry(input: EntryInput) {
-    if (!input.title.trim() || !isValidDemoDate(input.date, asOf) || !Number.isSafeInteger(input.amount) || input.amount <= 0) return false;
+    if (!input.title.trim() || !isValidDemoDate(input.date, asOf) || !Number.isSafeInteger(input.amount) || input.amount <= 0
+      || input.category === "Pembayaran utang" || input.category === "Penerimaan piutang") return false;
     if (live) { const result = await addLiveEntry(input); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
     const entry: CashEntry = { ...input, id: crypto.randomUUID(), dateLabel: formatDemoDate(input.date) };
     return commit({ ...ledger, entries: [entry, ...ledger.entries] });
@@ -188,7 +187,24 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
         obligations: ledger.obligations.map((row) => row.id === item.id ? { ...row, settled: correctedSettled } : row),
       });
     }
+    if (input.category === "Pembayaran utang" || input.category === "Penerimaan piutang") return false;
     return commit({ ...ledger, entries: ledger.entries.map((entry) => entry.id === id ? { ...entry, ...input, dateLabel: formatDemoDate(input.date) } : entry) });
+  }
+
+  async function deleteEntry(id: string) {
+    const current = ledger.entries.find((entry) => entry.id === id);
+    if (!current) return false;
+    if (current.linkedObligationId) {
+      const item = ledger.obligations.find((row) => row.id === current.linkedObligationId);
+      if (!item || item.settled < current.amount) return false;
+    }
+    if (live) { const result = await deleteLiveEntry(id); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
+    return commit({
+      entries: ledger.entries.filter((entry) => entry.id !== id),
+      obligations: current.linkedObligationId
+        ? ledger.obligations.map((item) => item.id === current.linkedObligationId ? { ...item, settled: item.settled - current.amount } : item)
+        : ledger.obligations,
+    });
   }
 
   async function addObligation(input: ObligationInput) {
@@ -215,14 +231,21 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
       : item) });
   }
 
-  async function recordPayment(id: string, amount: number, method: string) {
+  async function deleteObligation(id: string) {
+    const current = ledger.obligations.find((item) => item.id === id);
+    if (!current || ledger.entries.some((entry) => entry.linkedObligationId === id)) return false;
+    if (live) { const result = await deleteLiveObligation(id); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
+    return commit({ ...ledger, obligations: ledger.obligations.filter((item) => item.id !== id) });
+  }
+
+  async function recordPayment(id: string, amount: number, method: string, date: string) {
     const item = ledger.obligations.find((row) => row.id === id);
-    if (!item || !Number.isSafeInteger(amount) || amount <= 0 || amount > item.amount - item.settled) return false;
-    if (live) { const result = await recordLivePayment(id, amount, method); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
+    if (!item || !Number.isSafeInteger(amount) || amount <= 0 || amount > item.amount - item.settled || !isValidDemoDate(date, asOf)) return false;
+    if (live) { const result = await recordLivePayment(id, amount, method, date); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
     const entry: CashEntry = {
       id: crypto.randomUUID(),
-      date: DEMO_DATE,
-      dateLabel: formatDemoDate(DEMO_DATE),
+      date,
+      dateLabel: formatDemoDate(date),
       title: `${item.kind === "utang" ? "Pembayaran ke" : "Penerimaan dari"} ${item.party}`,
       category: item.kind === "utang" ? "Pembayaran utang" : "Penerimaan piutang",
       type: item.kind === "utang" ? "out" : "in",
@@ -236,7 +259,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
     });
   }
 
-  return <DemoLedgerContext.Provider value={{ ...ledger, ready, storageError, live, asOf, businessName, ownerEmail, role, resetDemo, addEntry, updateEntry, addObligation, updateObligation, recordPayment }}>{children}</DemoLedgerContext.Provider>;
+  return <DemoLedgerContext.Provider value={{ ...ledger, ready, storageError, live, asOf, businessName, ownerEmail, role, resetDemo, addEntry, updateEntry, deleteEntry, addObligation, updateObligation, deleteObligation, recordPayment }}>{children}</DemoLedgerContext.Provider>;
 }
 
 export function useDemoLedger() {

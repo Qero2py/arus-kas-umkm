@@ -29,4 +29,4 @@ Without Supabase environment variables, the app opens in demo mode with sample d
 
 ## Checks
 
-Run `npm run build` and `node --test tests/demo-calculations.test.cjs`. The full lint command currently reports `no-require-imports` in the CommonJS test file; this is documented in the Phase 6 review.
+Run `npm run build`, `npm run lint`, and `node --test tests/demo-calculations.test.cjs`. The Phase 6 review records the lint limitation that existed before the CommonJS test override was added.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowDownLeft, ArrowUpRight, CirclePlus, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CirclePlus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/page-heading";
 import { useDemoLedger } from "@/components/demo-ledger-provider";
@@ -19,13 +19,15 @@ function dueText(item: Obligation, asOf: string) {
 }
 
 export function ObligationsView() {
-  const { obligations, addObligation, updateObligation, recordPayment, asOf, live } = useDemoLedger();
+  const { obligations, addObligation, updateObligation, deleteObligation, recordPayment, asOf, live } = useDemoLedger();
   const [filter, setFilter] = useState<Filter>("semua");
   const [kind, setKind] = useState<"utang" | "piutang">("utang");
   const [paymentItem, setPaymentItem] = useState<Obligation | null>(null);
   const [editingItem, setEditingItem] = useState<Obligation | null>(null);
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
+  const [listError, setListError] = useState("");
+  const [dueDateValue, setDueDateValue] = useState("");
   const [saving, setSaving] = useState(false);
   const addRef = useRef<HTMLDialogElement>(null);
   const paymentRef = useRef<HTMLDialogElement>(null);
@@ -38,6 +40,7 @@ export function ObligationsView() {
     setFormError("");
     setEditingItem(null);
     setKind("utang");
+    setDueDateValue(dateFromDemoDay(5, asOf));
     addRef.current?.showModal();
   }
 
@@ -45,6 +48,7 @@ export function ObligationsView() {
     setFormError("");
     setEditingItem(item);
     setKind(item.kind);
+    setDueDateValue(item.dueDate);
     addRef.current?.showModal();
   }
 
@@ -52,6 +56,16 @@ export function ObligationsView() {
     setFormError("");
     setPaymentItem(item);
     paymentRef.current?.showModal();
+  }
+
+  async function remove(item: Obligation) {
+    if (saving || item.settled > 0 || !window.confirm(`Hapus catatan ${item.kind} ${item.party} sebesar ${formatRupiah(item.amount)}?`)) return;
+    setSaving(true);
+    let removed = false;
+    try { removed = await deleteObligation(item.id); } catch { removed = false; }
+    setSaving(false);
+    if (removed) { setListError(""); setNotice("Catatan utang/piutang dihapus."); }
+    else setListError("Catatan belum terhapus. Pastikan tidak ada pembayaran terkait, lalu coba lagi.");
   }
 
   async function saveObligation(event: FormEvent<HTMLFormElement>) {
@@ -82,6 +96,7 @@ export function ObligationsView() {
       return;
     }
     setNotice(`${kind === "utang" ? "Utang" : "Piutang"} ${formatRupiah(amount)} ${editingItem ? "diperbarui" : "ditambahkan"}.`);
+    setListError("");
     setFilter("semua");
     addRef.current?.close();
     setEditingItem(null);
@@ -93,20 +108,22 @@ export function ObligationsView() {
     if (!paymentItem) return;
     const data = new FormData(event.currentTarget);
     const amount = Number(data.get("amount"));
+    const date = String(data.get("date") ?? "");
     const remaining = paymentItem.amount - paymentItem.settled;
-    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > remaining) {
-      setFormError(`Masukkan nominal di atas 0 sampai ${formatRupiah(remaining)}.`);
+    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > remaining || !isValidIsoDate(date) || date > asOf) {
+      setFormError(`Masukkan nominal di atas 0 sampai ${formatRupiah(remaining)} dan tanggal paling lambat hari ini.`);
       return;
     }
     setSaving(true);
     let saved = false;
-    try { saved = await recordPayment(paymentItem.id, amount, String(data.get("method"))); } catch { saved = false; }
+    try { saved = await recordPayment(paymentItem.id, amount, String(data.get("method")), date); } catch { saved = false; }
     setSaving(false);
     if (!saved) {
       setFormError(live ? "Pembayaran belum tersimpan. Periksa koneksi dan sisa kewajiban, lalu coba lagi." : "Pembayaran belum tersimpan di browser. Coba lagi.");
       return;
     }
     setNotice(`${paymentItem.kind === "utang" ? "Pembayaran" : "Penerimaan"} ${formatRupiah(amount)} dicatat. Sisa dan saldo kas ikut diperbarui.`);
+    setListError("");
     paymentRef.current?.close();
     setPaymentItem(null);
   }
@@ -116,6 +133,7 @@ export function ObligationsView() {
       <PageHeading eyebrow={`Utang & piutang · ${live ? "Per" : "Data contoh per"} ${formatDemoDate(asOf)}`} title="Yang akan masuk dan keluar." description="Catat jumlah yang belum selesai. Pembayaran dan penerimaan akan masuk ke buku kas secara otomatis." action={<Button onClick={openAdd} className="h-11 px-4 text-sm"><CirclePlus size={17} /> Catat utang/piutang</Button>} />
 
       {notice && <div role="status" className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#a8c7ae] bg-[#edf5ee] px-4 py-3 text-sm text-[#28513a]"><span>{notice}</span><button type="button" aria-label="Tutup pesan" onClick={() => setNotice("")} className="grid size-9 place-items-center rounded-lg hover:bg-[#dce9dd]"><X size={17} /></button></div>}
+      {listError && <p role="alert" className="mb-4 rounded-lg border border-[#dba99f] bg-[#fff3f0] p-3 text-sm font-medium text-[#812e22]">{listError}</p>}
 
       <section className="mb-5 grid gap-3 sm:grid-cols-3" aria-label="Ringkasan utang dan piutang">
         <article className="rounded-xl border border-border bg-card p-4 sm:p-5"><p className="text-sm text-muted-foreground">Utang belum dibayar</p><p className="mt-2 text-xl font-semibold tabular-nums">{formatRupiah(outstanding("utang"))}</p></article>
@@ -136,12 +154,12 @@ export function ObligationsView() {
             </div>
             <div><p className="text-xs text-muted-foreground">Sisa</p><p className="mt-1 text-sm font-semibold tabular-nums">{formatRupiah(remaining)}</p><p className="text-xs text-muted-foreground">dari {formatRupiah(item.amount)}</p></div>
             <div><p className="text-xs text-muted-foreground">Status: {remaining === 0 ? "Lunas" : item.settled > 0 ? "Sebagian" : item.kind === "utang" ? "Belum dibayar" : "Belum diterima"}</p><p className={`mt-1 text-sm font-medium ${remaining > 0 && days <= 3 ? "text-[#8c382b]" : "text-foreground"}`}>{remaining === 0 ? "Lunas" : dueText(item, asOf)}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => openEdit(item)} className="min-h-11 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-secondary">Ubah</button>{remaining > 0 && <button type="button" onClick={() => openPayment(item)} className="min-h-11 rounded-lg border border-primary px-3 text-sm font-semibold text-primary hover:bg-secondary">Catat {item.kind === "utang" ? "pembayaran" : "penerimaan"}</button>}</div>
+            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => openEdit(item)} className="min-h-11 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-secondary">Ubah</button>{remaining > 0 && <button type="button" onClick={() => openPayment(item)} className="min-h-11 rounded-lg border border-primary px-3 text-sm font-semibold text-primary hover:bg-secondary">Catat {item.kind === "utang" ? "pembayaran" : "penerimaan"}</button>}{item.settled === 0 && <button type="button" disabled={saving} onClick={() => void remove(item)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-[#dba99f] px-3 text-sm font-semibold text-[#812e22] disabled:opacity-50"><Trash2 size={15} /> Hapus</button>}</div>
           </article>;
         })}</div>}
       </section>
 
-      <p className="mt-4 text-sm leading-6 text-muted-foreground">Pembayaran sebagian mengurangi sisa. Setiap pembayaran juga muncul sebagai transaksi kas pada {live ? "tanggal hari ini" : "tanggal data contoh"}.</p>
+      <p className="mt-4 text-sm leading-6 text-muted-foreground">Pembayaran sebagian mengurangi sisa. Setiap pembayaran juga muncul sebagai transaksi kas pada tanggal yang dicatat.</p>
 
       <dialog ref={addRef} className="m-auto w-[calc(100%-24px)] max-w-[480px] rounded-xl border border-border bg-card p-0 text-foreground shadow-xl">
         <form key={editingItem?.id ?? "new"} onSubmit={saveObligation} onChange={() => { if (formError) setFormError(""); }} onInvalidCapture={() => setFormError("Periksa kembali kolom wajib dan nominalnya.")}>
@@ -152,13 +170,27 @@ export function ObligationsView() {
             <label className="block text-sm font-semibold">Pihak terkait<input name="party" required maxLength={80} defaultValue={editingItem?.party ?? ""} placeholder="Nama pemasok atau pelanggan" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label>
             <label className="block text-sm font-semibold">Keterangan<input name="description" required maxLength={100} defaultValue={editingItem?.description ?? ""} placeholder="Contoh: Bahan baku mingguan" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label>
             <label className="block text-sm font-semibold">Nominal (Rp)<input name="amount" required type="number" min={Math.max(editingItem?.settled ?? 0, 1)} step="1" inputMode="numeric" defaultValue={editingItem?.amount} className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label>
-            <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-semibold">Tanggal catatan<input name="date" required type="date" max={asOf} defaultValue={editingItem?.date ?? asOf} className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label><label className="block text-sm font-semibold">Jatuh tempo<input name="dueDate" required type="date" defaultValue={editingItem?.dueDate ?? dateFromDemoDay(5, asOf)} className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label></div>
+            <div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-semibold">Tanggal catatan<input name="date" required type="date" max={asOf} defaultValue={editingItem?.date ?? asOf} className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label><label className="block text-sm font-semibold">Jatuh tempo<input name="dueDate" required type="date" defaultValue={editingItem?.dueDate ?? dateFromDemoDay(5, asOf)} onChange={(event) => setDueDateValue(event.target.value)} className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label></div>
+            {dueDateValue && dueDateValue < asOf && <p className="text-xs font-medium text-[#812e22]">Tanggal jatuh tempo sudah lewat. Catatan tetap dapat disimpan dan akan ditandai terlambat.</p>}
           </div>
           <div className="flex justify-end gap-2 border-t border-border bg-secondary/40 p-4"><Button type="button" variant="outline" onClick={() => addRef.current?.close()}>Batal</Button><Button type="submit" disabled={saving}>{saving ? "Menyimpan…" : editingItem ? "Simpan perubahan" : "Simpan catatan"}</Button></div>
         </form>
       </dialog>
 
-      <dialog ref={paymentRef} className="m-auto w-[calc(100%-24px)] max-w-[480px] rounded-xl border border-border bg-card p-0 text-foreground shadow-xl"><form key={paymentItem?.id ?? "none"} onSubmit={savePayment} onChange={() => { if (formError) setFormError(""); }} onInvalidCapture={() => setFormError(`Masukkan nominal ${paymentItem?.kind === "utang" ? "pembayaran" : "penerimaan"} yang valid.`)}><div className="flex items-center justify-between border-b border-border p-5"><h2 className="text-xl font-semibold">{paymentItem?.kind === "utang" ? "Catat pembayaran" : "Catat penerimaan"}</h2><button type="button" aria-label="Tutup formulir" onClick={() => paymentRef.current?.close()} className="grid size-11 place-items-center rounded-lg hover:bg-secondary"><X size={18} /></button></div><div className="space-y-4 p-5"><p className="text-sm leading-6 text-muted-foreground">{paymentItem?.party} · sisa {formatRupiah(Math.max((paymentItem?.amount ?? 0) - (paymentItem?.settled ?? 0), 0))}</p>{formError && <p role="alert" className="rounded-lg border border-[#dba99f] bg-[#fff3f0] p-3 text-sm font-medium text-[#812e22]">{formError}</p>}<label className="block text-sm font-semibold">Nominal yang {paymentItem?.kind === "utang" ? "dibayar" : "diterima"} (Rp)<input name="amount" required type="number" min="1" max={Math.max((paymentItem?.amount ?? 0) - (paymentItem?.settled ?? 0), 0)} step="1" inputMode="numeric" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label><label className="block text-sm font-semibold">Metode<select name="method" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal"><option>Tunai</option><option>Transfer</option><option>QRIS</option><option>Lainnya</option></select></label><p className="text-xs leading-5 text-muted-foreground">Tanggal transaksi: {formatDemoDate(asOf)}. Nominal yang dicatat akan langsung mengubah saldo.</p></div><div className="flex justify-end gap-2 border-t border-border bg-secondary/40 p-4"><Button type="button" variant="outline" onClick={() => paymentRef.current?.close()}>Batal</Button><Button type="submit" disabled={saving}>{saving ? "Menyimpan…" : `Simpan ${paymentItem?.kind === "utang" ? "pembayaran" : "penerimaan"}`}</Button></div></form></dialog>
+      <dialog ref={paymentRef} className="m-auto w-[calc(100%-24px)] max-w-[480px] rounded-xl border border-border bg-card p-0 text-foreground shadow-xl">
+        <form key={paymentItem?.id ?? "none"} onSubmit={savePayment} onChange={() => { if (formError) setFormError(""); }} onInvalidCapture={() => setFormError("Periksa nominal dan tanggal pembayaran.")}>
+          <div className="flex items-center justify-between border-b border-border p-5"><h2 className="text-xl font-semibold">{paymentItem?.kind === "utang" ? "Catat pembayaran" : "Catat penerimaan"}</h2><button type="button" aria-label="Tutup formulir" onClick={() => paymentRef.current?.close()} className="grid size-11 place-items-center rounded-lg hover:bg-secondary"><X size={18} /></button></div>
+          <div className="space-y-4 p-5">
+            <p className="text-sm leading-6 text-muted-foreground">{paymentItem?.party} · sisa {formatRupiah(Math.max((paymentItem?.amount ?? 0) - (paymentItem?.settled ?? 0), 0))}</p>
+            {formError && <p role="alert" className="rounded-lg border border-[#dba99f] bg-[#fff3f0] p-3 text-sm font-medium text-[#812e22]">{formError}</p>}
+            <label className="block text-sm font-semibold">Nominal yang {paymentItem?.kind === "utang" ? "dibayar" : "diterima"} (Rp)<input name="amount" required type="number" min="1" max={Math.max((paymentItem?.amount ?? 0) - (paymentItem?.settled ?? 0), 0)} step="1" inputMode="numeric" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label>
+            <label className="block text-sm font-semibold">Tanggal pembayaran/penerimaan<input name="date" required type="date" max={asOf} defaultValue={asOf} className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal" /></label>
+            <label className="block text-sm font-semibold">Metode<select name="method" className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm font-normal"><option>Tunai</option><option>Transfer</option><option>QRIS</option><option>Lainnya</option></select></label>
+            <p className="text-xs leading-5 text-muted-foreground">Nominal yang dicatat akan mengubah saldo dan sisa utang/piutang.</p>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-border bg-secondary/40 p-4"><Button type="button" variant="outline" onClick={() => paymentRef.current?.close()}>Batal</Button><Button type="submit" disabled={saving}>{saving ? "Menyimpan…" : `Simpan ${paymentItem?.kind === "utang" ? "pembayaran" : "penerimaan"}`}</Button></div>
+        </form>
+      </dialog>
     </>
   );
 }

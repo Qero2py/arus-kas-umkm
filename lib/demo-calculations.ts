@@ -87,7 +87,7 @@ export function getProjection(entries: CashEntry[], obligations: Obligation[], o
       for (const item of obligations) {
         const remaining = Math.max(item.amount - item.settled, 0);
         const eventDay = Math.max(1, daysBetweenDates(asOf, item.dueDate));
-        if (remaining === 0 || eventDay !== day) continue;
+        if (remaining === 0 || eventDay !== day || (item.kind === "piutang" && item.dueDate < asOf)) continue;
         if (item.kind === "utang") {
           scheduled -= remaining;
           cautious -= remaining;
@@ -100,6 +100,7 @@ export function getProjection(entries: CashEntry[], obligations: Obligation[], o
   }
 
   const payables = obligations.filter((item) => item.kind === "utang" && Math.max(1, daysBetweenDates(asOf, item.dueDate)) <= horizon).reduce((sum, item) => sum + Math.max(item.amount - item.settled, 0), 0);
-  const receivables = obligations.filter((item) => item.kind === "piutang" && Math.max(1, daysBetweenDates(asOf, item.dueDate)) <= horizon).reduce((sum, item) => sum + Math.max(item.amount - item.settled, 0), 0);
-  return { sufficient, historyDays, dailyNet, opening, points, payables, receivables, horizon };
+  const receivables = obligations.filter((item) => item.kind === "piutang" && daysBetweenDates(asOf, item.dueDate) >= 0 && daysBetweenDates(asOf, item.dueDate) <= horizon).reduce((sum, item) => sum + Math.max(item.amount - item.settled, 0), 0);
+  const overdueReceivables = obligations.filter((item) => item.kind === "piutang" && item.dueDate < asOf).reduce((sum, item) => sum + Math.max(item.amount - item.settled, 0), 0);
+  return { sufficient, historyDays, dailyNet, opening, points, payables, receivables, overdueReceivables, horizon };
 }
