@@ -26,7 +26,7 @@ const sections: NavSection[] = [
     { href: "/accounting/credit", label: "Tagihan tempo", icon: CircleDollarSign, liveOnly: true, ownerOnly: true },
     { href: "/accounting/inventory", label: "Produk & stok", icon: Boxes, liveOnly: true, ownerOnly: true },
     { href: "/accounting/assets", label: "Aset tetap", icon: Landmark, liveOnly: true, ownerOnly: true },
-    { href: "/obligations", label: "Utang & piutang", icon: CircleDollarSign, previewOnly: true },
+    { href: "/obligations", label: "Tagihan tempo", icon: CircleDollarSign, previewOnly: true },
   ] },
   { title: "Laporan", items: [
     { href: "/accounting/statements", label: "Laporan keuangan", icon: FileChartColumn, liveOnly: true, ownerOnly: true },
