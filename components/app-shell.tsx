@@ -12,6 +12,7 @@ const navItems = [
   { href: "/transactions", label: "Buku kas", ownerOnly: false },
   { href: "/obligations", label: "Utang & piutang", ownerOnly: false },
   { href: "/projection", label: "Proyeksi", ownerOnly: true },
+  { href: "/accounting/accounts", label: "Akuntansi", ownerOnly: true, liveOnly: true },
   { href: "/settings", label: "Pengaturan", ownerOnly: true },
   { href: "/access", label: "Akses", ownerOnly: true, liveOnly: true },
 ];
@@ -21,6 +22,7 @@ const sectionNames: Record<string, string> = {
   "/transactions": "Buku kas",
   "/obligations": "Utang & piutang",
   "/projection": "Proyeksi kas",
+  "/accounting/accounts": "Daftar akun",
   "/settings": "Pengaturan",
   "/access": "Akses usaha",
 };
@@ -28,7 +30,7 @@ const sectionNames: Record<string, string> = {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const currentSection = sectionNames[pathname] ?? "Dashboard";
+  const currentSection = pathname.startsWith("/accounting/") ? "Akuntansi" : sectionNames[pathname] ?? "Dashboard";
   const { ready: settingsReady, storageError: settingsError, resetDemo: resetSettings } = useDemoSettings();
   const { ready: ledgerReady, storageError: ledgerError, resetDemo: resetLedger, live, businessName, ownerEmail, role } = useDemoLedger();
   const visibleNav = navItems.filter((item) => (!item.liveOnly || live) && (!item.ownerOnly || !live || role === "owner"));
@@ -57,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex" aria-label="Navigasi utama">
             {visibleNav.map((item) => {
-              const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const active = pathname === item.href || (item.href === "/accounting/accounts" && pathname.startsWith("/accounting/")) || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`rounded-lg px-3 py-2 text-sm transition-colors ${active ? "bg-secondary font-semibold text-foreground ring-1 ring-border" : "font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{item.label}</Link>;
             })}
           </div>
@@ -71,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="border-t border-border/60 md:hidden">
           <nav className="mx-auto grid max-w-[1280px] grid-cols-3 gap-1 px-4 py-2 sm:px-7" aria-label="Navigasi utama">
             {visibleNav.map((item) => {
-              const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const active = pathname === item.href || (item.href === "/accounting/accounts" && pathname.startsWith("/accounting/")) || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`flex min-h-11 items-center justify-center rounded-md px-1 py-2 text-center text-xs sm:text-sm ${active ? "bg-primary font-semibold text-primary-foreground" : "font-medium text-foreground hover:bg-secondary"}`}>{item.label}</Link>;
             })}
           </nav>

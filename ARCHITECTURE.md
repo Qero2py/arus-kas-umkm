@@ -4,6 +4,8 @@
 
 **Implemented prototype architecture with a Vercel production deployment; Phase 6 evidence remains incomplete.** The submitted `prd.md` remains the requirements reference. This document records the current application design and deployment setup.
 
+The next product version is specified in [PRD_ACCOUNTING_V2.md](PRD_ACCOUNTING_V2.md). Its fifteen accounting migrations are applied only to a separate development Supabase project. The local accounting module has a chart of accounts, opening balances, five basic event forms, customer and supplier contacts, credit documents with partial payments, products and services, stock movements with moving-average HPP, fixed assets with owner-triggered monthly depreciation, a trial balance, a general ledger, ordered monthly closing, and audited correction for basic cash journals, standalone credit documents, linked payments, latest cash stock events, and cash-acquired assets before depreciation. Credit documents, stock movements, assets, depreciation, and payments post their journals in the same database transaction. Closed months reject new journals and stock movements. It does not change the deployed cash-flow behavior. The existing architecture below describes the current prototype until the accounting flows are reconciled and verified.
+
 ## 1. Architecture decision
 
 Use a **modular monolith**: one Next.js application deployed on Vercel, with Supabase providing authentication and PostgreSQL. Keep the prototype in one deployable codebase. Do not add a separate backend service or ML service for the current scope.
