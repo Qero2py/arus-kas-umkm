@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { AccountingCreditView } from "@/components/accounting-credit-view";
 import { AccountingCreditCorrections } from "@/components/accounting-credit-corrections";
+import { AgingSummary } from "@/components/aging-summary";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { loadAccountingCredit } from "@/lib/supabase/accounting-credit";
 import { todayInJakarta } from "@/lib/supabase/workspace";
@@ -21,6 +22,7 @@ async function Content({ searchParams }: { searchParams: Filters }) {
   const result = await loadAccountingCredit(page);
   if (!result.ok) return <p role="alert" className="rounded-xl border border-border bg-card p-6 text-sm">{result.message}</p>;
   return <>
+    <AgingSummary />
     <AccountingCreditView documents={result.documents} accounts={result.accounts}
       businessName={result.businessName} inventoryActive={result.inventoryActive}
       assetActive={result.assetActive} today={todayInJakarta()} />

@@ -7,9 +7,17 @@ values (
   '00000000-0000-0000-0000-000000000000',
   'authenticated', 'authenticated', 'accounting-smoke@example.invalid', '', now(), now(), now()
 );
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
+values (
+  'a0000000-0000-4000-8000-000000000002',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'accounting-staff-smoke@example.invalid', '', now(), now(), now()
+);
 
 insert into public.businesses (id, owner_id, name)
 values ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'Smoke Test Business');
+insert into public.business_members (business_id,user_id,member_email)
+values ('b0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','accounting-staff-smoke@example.invalid');
 
 set local role authenticated;
 set local request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000001';
@@ -22,6 +30,9 @@ declare
   v_debit text;
   v_credit text;
   v_balance text;
+  v_cash_workspace jsonb;
+  v_legacy_entry uuid;
+  v_legacy_obligation uuid;
 begin
   if (select count(*) from public.accounting_accounts where business_id = v_business) <> 15 then
     raise exception 'Account template did not seed or is not visible to owner';
@@ -40,6 +51,13 @@ begin
     raise exception 'Rejected opening balance left a journal behind';
   end if;
 
+  insert into public.transactions (business_id,entry_date,title,category,type,amount,method)
+    values (v_business,current_date - 3,'Arsip sebelum pembukuan','Penjualan','in',1000,'Tunai')
+    returning id into v_legacy_entry;
+  insert into public.obligations (business_id,kind,party,description,due_date,amount)
+    values (v_business,'piutang','Pelanggan lama','Arsip',current_date + 2,2000)
+    returning id into v_legacy_obligation;
+
   select public.post_accounting_journal(
     v_business, current_date - 2, 'opening_balance', 'initial', 'Saldo pembuka',
     '[{"accountCode":"1010","debit":100000,"credit":0},{"accountCode":"3100","debit":0,"credit":100000}]'::jsonb
@@ -48,11 +66,32 @@ begin
   if (select count(*) from public.accounting_journal_lines where journal_id = v_journal) <> 2 then
     raise exception 'Posted journal lines are not visible to owner';
   end if;
+  begin
+    insert into public.transactions (business_id,entry_date,title,category,type,amount,method)
+      values (v_business,current_date,'Tidak boleh','Penjualan','in',1000,'Tunai');
+    raise exception 'Legacy cash accepted a new entry after cutover';
+  exception when check_violation then null; end;
+  begin
+    update public.transactions set title = 'Tidak boleh diubah' where id = v_legacy_entry;
+    raise exception 'Legacy cash accepted a correction after cutover';
+  exception when check_violation then null; end;
+  begin
+    delete from public.obligations where id = v_legacy_obligation;
+    raise exception 'Legacy obligation accepted deletion after cutover';
+  exception when check_violation then null; end;
 
   perform public.post_accounting_journal(
     v_business, current_date - 1, 'cash_sale', 'sale-1', 'Penjualan tunai uji',
     '[{"accountCode":"1010","debit":50000,"credit":0},{"accountCode":"4100","debit":0,"credit":50000}]'::jsonb
   );
+  v_cash_workspace := public.get_accounting_cash_workspace(v_business);
+  if v_cash_workspace->>'openingBalance' <> '100000'
+    or jsonb_array_length(v_cash_workspace->'entries') <> 1
+    or v_cash_workspace->'entries'->0->>'amount' <> '50000'
+    or v_cash_workspace->'entries'->0->>'journalId' is null
+    or v_cash_workspace->'entries'->0->>'nonRoutine' <> 'false' then
+    raise exception 'Unified cash workspace did not reconcile with posted journals';
+  end if;
   perform public.post_accounting_journal(
     v_business, current_date, 'cash_expense', 'expense-1', 'Beban tunai uji',
     '[{"accountCode":"6100","debit":20000,"credit":0},{"accountCode":"1010","debit":0,"credit":20000}]'::jsonb
@@ -123,6 +162,16 @@ begin
   end;
 
   perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', true);
+  if public.get_accounting_cash_workspace(v_business)->>'openingBalance' <> '100000' then
+    raise exception 'Business manager cannot read the shared cash workspace';
+  end if;
+  perform public.post_staff_cash_sale(v_business,current_date - 1,
+    '10000000-0000-4000-8000-000000000002','Penjualan petugas',3000,'1010','4100');
+  begin
+    perform public.post_staff_cash_sale(v_business,current_date - 1,
+      '10000000-0000-4000-8000-000000000003','Akun salah',3000,'6100','4100');
+    raise exception 'Staff was allowed to debit an expense account as cash';
+  exception when invalid_parameter_value then null; end;
   begin
     perform public.get_accounting_trial_balance(v_business, current_date);
     raise exception 'Non-owner read trial balance';
@@ -140,6 +189,13 @@ begin
   end;
   perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
 
+  perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000099', true);
+  begin
+    perform public.get_accounting_cash_workspace(v_business);
+    raise exception 'Unrelated user read the cash workspace';
+  exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
+
   begin
     insert into public.accounting_journals (business_id, entry_date, source_type, source_id, description, created_by)
     values (v_business, current_date, 'smoke', 'direct', 'Direct insert', 'a0000000-0000-4000-8000-000000000001');
@@ -154,6 +210,7 @@ $$;
 
 reset role;
 delete from auth.users where id = 'a0000000-0000-4000-8000-000000000001';
+delete from auth.users where id = 'a0000000-0000-4000-8000-000000000002';
 set constraints all immediate;
 do $$
 begin

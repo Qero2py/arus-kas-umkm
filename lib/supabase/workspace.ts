@@ -10,6 +10,7 @@ export type LiveWorkspace = {
   businessName: string;
   ownerEmail: string;
   role: "owner" | "manager";
+  accountingActive: boolean;
   asOf: string;
   settings: LiveSettings;
   ledger: LiveLedger;
@@ -18,6 +19,22 @@ export type LiveWorkspace = {
 type BusinessRow = { id: string; owner_id: string; name: string; opening_balance: number; cash_threshold: number; projection_horizon: 7 | 14 | 30 };
 type TransactionRow = { id: string; business_id: string; obligation_id: string | null; entry_date: string; title: string; category: string; type: "in" | "out"; amount: number; method: string };
 type ObligationRow = { id: string; business_id: string; kind: "utang" | "piutang"; party: string; description: string; obligation_date: string; due_date: string; amount: number };
+
+type AccountingCashRow = {
+  id: string; date: string; title: string; category: string; type: "in" | "out";
+  amount: string; method: string; nonRoutine: boolean;
+};
+type AccountingObligationRow = {
+  id: string; kind: "utang" | "piutang"; party: string; description: string;
+  date: string; dueDate: string; amount: string; settled: string;
+};
+
+function safeRupiah(value: unknown) {
+  if (typeof value !== "string" || !/^(0|[1-9]\d*)$/.test(value)) throw new Error("Nominal akuntansi tidak valid.");
+  const amount = Number(value);
+  if (!Number.isSafeInteger(amount)) throw new Error("Nominal akuntansi melebihi batas aman.");
+  return amount;
+}
 
 export function todayInJakarta() {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
@@ -51,6 +68,37 @@ export async function loadWorkspace(): Promise<{ status: "ok"; workspace: LiveWo
   const context = await ownerContext();
   if (context.status !== "ok") return { status: context.status };
   const { supabase, business, email, role } = context;
+  const asOf = todayInJakarta();
+  const accounting = await supabase.rpc("get_accounting_cash_workspace", { p_business_id: business.id });
+  if (accounting.error) return { status: "error" };
+  if (accounting.data) {
+    try {
+      const payload = accounting.data as {
+        openingBalance: string; entries: AccountingCashRow[]; obligations: AccountingObligationRow[];
+      };
+      if (!Array.isArray(payload.entries) || !Array.isArray(payload.obligations)) throw new Error("Data akuntansi tidak lengkap.");
+      const entries: CashEntry[] = payload.entries.map((row) => ({
+        id: row.id, date: row.date, dateLabel: formatDemoDate(row.date), title: row.title,
+        category: row.category.replaceAll("_", " "), type: row.type,
+        amount: safeRupiah(row.amount), method: row.method,
+        linkedObligationId: row.nonRoutine ? row.id : undefined,
+      }));
+      const obligations: Obligation[] = payload.obligations.map((row) => ({
+        id: row.id, kind: row.kind, party: row.party, description: row.description,
+        date: row.date, dueDate: row.dueDate, dueLabel: formatDemoDate(row.dueDate),
+        dueInDays: daysBetweenDates(asOf, row.dueDate), amount: safeRupiah(row.amount),
+        settled: safeRupiah(row.settled),
+      }));
+      return { status: "ok", workspace: {
+        businessId: business.id, businessName: business.name, ownerEmail: email, role,
+        accountingActive: true, asOf,
+        settings: { openingBalance: safeRupiah(payload.openingBalance), threshold: Number(business.cash_threshold), horizon: business.projection_horizon },
+        ledger: { entries, obligations },
+      } };
+    } catch {
+      return { status: "error" };
+    }
+  }
   const [transactionResult, obligationResult] = await Promise.all([
     supabase.from("transactions").select("id, business_id, obligation_id, entry_date, title, category, type, amount, method").eq("business_id", business.id).order("entry_date", { ascending: false }),
     supabase.from("obligations").select("id, business_id, kind, party, description, obligation_date, due_date, amount").eq("business_id", business.id).order("due_date", { ascending: true }),
@@ -58,7 +106,6 @@ export async function loadWorkspace(): Promise<{ status: "ok"; workspace: LiveWo
   if (transactionResult.error || obligationResult.error) return { status: "error" };
   const transactionRows = (transactionResult.data ?? []) as TransactionRow[];
   const obligationRows = (obligationResult.data ?? []) as ObligationRow[];
-  const asOf = todayInJakarta();
   const settled = new Map<string, number>();
   for (const row of transactionRows) {
     if (row.obligation_id) settled.set(row.obligation_id, (settled.get(row.obligation_id) ?? 0) + Number(row.amount));
@@ -74,7 +121,7 @@ export async function loadWorkspace(): Promise<{ status: "ok"; workspace: LiveWo
     amount: Number(row.amount), settled: settled.get(row.id) ?? 0,
   }));
   return { status: "ok", workspace: {
-    businessId: business.id, businessName: business.name, ownerEmail: email, role, asOf,
+    businessId: business.id, businessName: business.name, ownerEmail: email, role, accountingActive: false, asOf,
     settings: { openingBalance: Number(business.opening_balance), threshold: Number(business.cash_threshold), horizon: business.projection_horizon },
     ledger: { entries, obligations },
   } };

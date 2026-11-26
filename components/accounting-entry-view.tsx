@@ -29,7 +29,7 @@ function AccountSelect({ label, role, value, onChange, accounts }: {
   </label>;
 }
 
-export function AccountingEntryView({ accounts, today }: { accounts: Account[]; today: string }) {
+export function AccountingEntryView({ accounts, today, role }: { accounts: Account[]; today: string; role: "owner" | "manager" }) {
   const active = (role: Account["role"]) => accounts.find((account) => account.active && account.role === role)?.code ?? "";
   const [type, setType] = useState<EventType>("cash_sale");
   const [date, setDate] = useState(today);
@@ -89,14 +89,14 @@ export function AccountingEntryView({ accounts, today }: { accounts: Account[]; 
   }
 
   return <>
-    <PageHeading eyebrow="Akuntansi · Input harian" title="Catat transaksi"
+    <PageHeading eyebrow="Kegiatan usaha · Input harian" title={role === "owner" ? "Catat transaksi" : "Catat penjualan tunai"}
       description="Pilih jenis transaksi, akun, dan nominal. Sistem membentuk pasangan debit dan kredit secara otomatis." />
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.8fr)]">
       <form onSubmit={submit} className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
         <label className="block text-sm font-medium">Jenis transaksi
           <select value={type} onChange={(event) => { setType(event.target.value as EventType); sourceId.current = null; setError(""); }}
             className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm">
-            {events.map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
+            {events.filter((item) => role === "owner" || item.type === "cash_sale").map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
           </select>
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -133,7 +133,7 @@ export function AccountingEntryView({ accounts, today }: { accounts: Account[]; 
           <p className="mt-4 text-xs leading-5 text-muted-foreground">Nomor sumber dibuat otomatis dan digunakan untuk mencegah pembukuan ganda saat permintaan diulang.</p>
         </section>
         <section className="rounded-xl border border-[#e7dfca] bg-[#f8f3e8] p-5 text-xs leading-5 text-[#594c35]">
-          Jika usaha sudah memiliki aset, utang, atau modal, isi <Link className="font-semibold underline" href="/accounting/opening">saldo pembuka</Link> sebelum transaksi pertama. Jurnal akuntansi ini masih terpisah dari Buku Kas dan proyeksi lama selama masa transisi.
+          {role === "owner" ? <>Jika usaha sudah memiliki aset, utang, atau modal, isi <Link className="font-semibold underline" href="/accounting/opening">saldo pembuka</Link> sebelum transaksi pertama.</> : "Pengelola hanya dapat membukukan penjualan tunai. Pemilik mengatur akun, stok, dan laporan keuangan."} Transaksi yang dibukukan langsung muncul pada buku kas dan proyeksi.
         </section>
       </aside>
     </div>

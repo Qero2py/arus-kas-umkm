@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { addLiveEntry, addLiveObligation, deleteLiveEntry, deleteLiveObligation, loadLiveWorkspace, recordLivePayment, updateLiveEntry, updateLiveObligation } from "@/app/actions/workspace";
 import { createClient as createBrowserClient } from "@/lib/supabase/browser";
 import { loadInitialWorkspace } from "@/lib/supabase/initial-workspace";
@@ -20,6 +20,7 @@ type DemoLedgerContextValue = Ledger & {
   businessName: string;
   ownerEmail: string;
   role: "owner" | "manager";
+  accountingActive: boolean;
   resetDemo: () => boolean;
   addEntry: (entry: EntryInput) => Promise<boolean>;
   updateEntry: (id: string, entry: EntryInput) => Promise<boolean>;
@@ -52,6 +53,8 @@ function isStoredLedger(value: unknown): value is Ledger {
 
 export function DemoLedgerProvider({ children, live = false }: { children: ReactNode; live?: boolean }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const previousPathname = useRef(pathname);
   const loadingLive = useRef(false);
   const rerunLive = useRef(false);
   const [ledger, setLedger] = useState<Ledger>(live ? { entries: [], obligations: [] } : initialLedger);
@@ -61,6 +64,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   const [businessName, setBusinessName] = useState(demoBusiness.name);
   const [ownerEmail, setOwnerEmail] = useState("");
   const [role, setRole] = useState<"owner" | "manager">("owner");
+  const [accountingActive, setAccountingActive] = useState(false);
   const [businessId, setBusinessId] = useState("");
 
   const applyLiveWorkspace = useCallback((workspace: LiveWorkspace) => {
@@ -69,6 +73,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
     setBusinessName(workspace.businessName);
     setOwnerEmail(workspace.ownerEmail);
     setRole(workspace.role);
+    setAccountingActive(workspace.accountingActive);
     setBusinessId(workspace.businessId);
     setStorageError(null);
     setReady(true);
@@ -148,6 +153,14 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
     };
   }, [businessId, live, refreshLive]);
 
+  useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
+    if (!live || !businessId) return;
+    const timer = window.setTimeout(() => { void refreshLive(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [pathname, live, businessId, refreshLive]);
+
   function commit(next: Ledger) {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(next));
@@ -166,6 +179,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function addEntry(input: EntryInput) {
+    if (accountingActive) return false;
     if (!input.title.trim() || !isValidDemoDate(input.date, asOf) || !Number.isSafeInteger(input.amount) || input.amount <= 0
       || input.category === "Pembayaran utang" || input.category === "Penerimaan piutang") return false;
     if (live) { const result = await addLiveEntry(input); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
@@ -174,6 +188,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function updateEntry(id: string, input: EntryInput) {
+    if (accountingActive) return false;
     const current = ledger.entries.find((entry) => entry.id === id);
     if (!current || !input.title.trim() || !isValidDemoDate(input.date, asOf) || !Number.isSafeInteger(input.amount) || input.amount <= 0) return false;
     if (live) { const result = await updateLiveEntry(id, input); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
@@ -192,6 +207,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function deleteEntry(id: string) {
+    if (accountingActive) return false;
     const current = ledger.entries.find((entry) => entry.id === id);
     if (!current) return false;
     if (current.linkedObligationId) {
@@ -208,6 +224,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function addObligation(input: ObligationInput) {
+    if (accountingActive) return false;
     if (!input.party.trim() || !input.description.trim() || !isValidDemoDate(input.date, asOf) || !isValidIsoDate(input.dueDate) || !Number.isSafeInteger(input.amount) || input.amount <= 0) return false;
     if (live) { const result = await addLiveObligation(input); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
     const item: Obligation = {
@@ -221,6 +238,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function updateObligation(id: string, input: Omit<ObligationInput, "kind">) {
+    if (accountingActive) return false;
     const current = ledger.obligations.find((item) => item.id === id);
     if (!current || !input.party.trim() || !input.description.trim() || !isValidDemoDate(input.date, asOf)
       || !isValidIsoDate(input.dueDate) || !Number.isSafeInteger(input.amount)
@@ -232,6 +250,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function deleteObligation(id: string) {
+    if (accountingActive) return false;
     const current = ledger.obligations.find((item) => item.id === id);
     if (!current || ledger.entries.some((entry) => entry.linkedObligationId === id)) return false;
     if (live) { const result = await deleteLiveObligation(id); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
@@ -239,6 +258,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
   }
 
   async function recordPayment(id: string, amount: number, method: string, date: string) {
+    if (accountingActive) return false;
     const item = ledger.obligations.find((row) => row.id === id);
     if (!item || !Number.isSafeInteger(amount) || amount <= 0 || amount > item.amount - item.settled || !isValidDemoDate(date, asOf)) return false;
     if (live) { const result = await recordLivePayment(id, amount, method, date); if (!result.ok) return false; applyLiveWorkspace(result.workspace); return true; }
@@ -259,7 +279,7 @@ export function DemoLedgerProvider({ children, live = false }: { children: React
     });
   }
 
-  return <DemoLedgerContext.Provider value={{ ...ledger, ready, storageError, live, asOf, businessName, ownerEmail, role, resetDemo, addEntry, updateEntry, deleteEntry, addObligation, updateObligation, deleteObligation, recordPayment }}>{children}</DemoLedgerContext.Provider>;
+  return <DemoLedgerContext.Provider value={{ ...ledger, ready, storageError, live, asOf, businessName, ownerEmail, role, accountingActive, resetDemo, addEntry, updateEntry, deleteEntry, addObligation, updateObligation, deleteObligation, recordPayment }}>{children}</DemoLedgerContext.Provider>;
 }
 
 export function useDemoLedger() {

@@ -135,6 +135,17 @@ try {
   assert.equal(documents.find((row) => row.id === purchaseId)?.outstanding, "100000");
   assert.equal(documents.find((row) => row.id === saleId)?.contact_name, "Pelanggan Uji");
 
+  const cashWorkspace = expectData(await client.rpc("get_accounting_cash_workspace", {
+    p_business_id: business.id,
+  }), "Read unified cash workspace");
+  assert.equal(cashWorkspace.openingBalance, "100000");
+  assert.equal(cashWorkspace.entries.filter((entry) => entry.type === "in")
+    .reduce((sum, entry) => sum + Number(entry.amount), 0), 150_000);
+  assert.equal(cashWorkspace.entries.filter((entry) => entry.type === "out")
+    .reduce((sum, entry) => sum + Number(entry.amount), 0), 80_000);
+  assert.equal(cashWorkspace.obligations.find((item) => item.id === saleId)?.settled, "100000");
+  assert.equal(cashWorkspace.obligations.find((item) => item.id === purchaseId)?.settled, "80000");
+
   const otherEmail = `accounting-other-${randomUUID()}@example.org`;
   const otherPassword = `${randomBytes(24).toString("base64url")}A!8`;
   const otherCreated = expectData(await admin.auth.admin.createUser({
@@ -143,6 +154,8 @@ try {
   otherUserId = otherCreated.user.id;
   const otherClient = createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
   expectData(await otherClient.auth.signInWithPassword({ email: otherEmail, password: otherPassword }), "Sign in second user");
+  const crossBusinessCash = await otherClient.rpc("get_accounting_cash_workspace", { p_business_id: business.id });
+  assert.ok(crossBusinessCash.error, "Another owner cannot read the cash workspace");
   const otherBusiness = expectData(await otherClient.from("businesses").insert({
     owner_id: otherUserId, name: "Accounting stock opening test",
   }).select("id").single(), "Create second business");

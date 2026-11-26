@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Check, CircleHelp, Info, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { PageHeading } from "@/components/page-heading";
@@ -18,7 +19,7 @@ export function SettingsView() {
 
 function SettingsForm() {
   const { settings, saveSettings } = useDemoSettings();
-  const { asOf, live } = useDemoLedger();
+  const { asOf, live, accountingActive } = useDemoLedger();
   const [openingBalance, setOpeningBalance] = useState(String(settings.openingBalance));
   const [threshold, setThreshold] = useState(String(settings.threshold));
   const [horizon, setHorizon] = useState<7 | 14 | 30>(settings.horizon);
@@ -51,13 +52,13 @@ function SettingsForm() {
 
   return (
     <>
-      <PageHeading eyebrow={`Pengaturan · ${live ? "Per" : "Data contoh per"} ${formatDemoDate(asOf)}`} title="Atur dasar pemantauan." description="Saldo awal mengubah saldo kas dan proyeksi. Batas aman menentukan kapan peringatan muncul." />
+      <PageHeading eyebrow={`Pengaturan · ${live ? "Per" : "Data contoh per"} ${formatDemoDate(asOf)}`} title="Atur dasar pemantauan." description={accountingActive ? "Saldo berasal dari jurnal pembuka dan transaksi. Di sini kamu dapat mengubah batas aman dan jangka proyeksi." : "Saldo awal mengubah saldo kas dan proyeksi. Batas aman menentukan kapan peringatan muncul."} />
       <form onSubmit={submit} onInvalidCapture={() => setFormError("Periksa kembali kolom yang wajib diisi dan pastikan nominalnya tidak negatif.")} className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,.8fr)]">
         <div className="space-y-4">
           <section className={`${surface} p-5 sm:p-6`}>
             <div className="flex items-start gap-3"><div className="grid size-9 place-items-center rounded-xl bg-secondary text-primary"><SlidersHorizontal size={17} /></div><div><h2 className="text-[14px] font-semibold">Saldo dan batas aman</h2><p className="mt-1 text-xs text-muted-foreground">Gunakan angka yang mewakili kondisi usaha saat ini.</p></div></div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold">Saldo awal usaha (Rp)<input value={openingBalance} onChange={(event) => { setOpeningBalance(event.target.value); setSaved(false); setFormError(""); }} type="number" required min="0" step="1" inputMode="numeric" className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium tabular-nums outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10" /><span className="mt-1.5 block text-xs font-normal leading-5 text-muted-foreground">Saldo sebelum semua transaksi dalam buku kas {live ? "usaha" : "demo"}.</span></label>
+              <label className="block text-sm font-semibold">{accountingActive ? "Saldo pembuka akuntansi (Rp)" : "Saldo awal usaha (Rp)"}<input value={openingBalance} onChange={(event) => { setOpeningBalance(event.target.value); setSaved(false); setFormError(""); }} type="number" required min="0" step="1" inputMode="numeric" disabled={accountingActive} className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium tabular-nums outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10 disabled:bg-secondary disabled:text-muted-foreground" /><span className="mt-1.5 block text-xs font-normal leading-5 text-muted-foreground">{accountingActive ? <>Angka ini dikunci oleh jurnal. Lihat <Link href="/accounting/opening" className="font-semibold text-primary underline">saldo pembuka</Link> untuk rinciannya.</> : `Saldo sebelum semua transaksi dalam buku kas ${live ? "usaha" : "demo"}.`}</span></label>
               <label className="block text-sm font-semibold">Batas aman saldo (Rp)<input value={threshold} onChange={(event) => { setThreshold(event.target.value); setSaved(false); setFormError(""); }} type="number" required min="0" step="1" inputMode="numeric" className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium tabular-nums outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10" /><span className="mt-1.5 block text-xs font-normal leading-5 text-muted-foreground">Peringatan muncul jika proyeksi lebih rendah dari batas ini.</span></label>
             </div>
           </section>
@@ -84,7 +85,7 @@ function SettingsForm() {
               <div className="flex items-center justify-between py-3"><dt className="text-muted-foreground">Data</dt><dd><StatusPill tone={live ? "green" : "amber"}>{live ? "Akun usaha" : "Simulasi lokal"}</StatusPill></dd></div>
             </dl>
           </section>
-          <section className="rounded-xl border border-[#e7dfca] bg-[#f8f3e8] p-4 text-sm leading-6 text-[#594c35]"><div className="flex gap-2"><Info size={17} className="mt-0.5 shrink-0" /><p>{live ? "Data tersimpan pada usaha yang terhubung ke akun Anda. Periksa saldo awal sebelum meninjau proyeksi." : "Data contoh disimpan di browser ini. Jangan masukkan data keuangan usaha yang sebenarnya ke dalam pratinjau."}</p></div></section>
+          <section className="rounded-xl border border-[#e7dfca] bg-[#f8f3e8] p-4 text-sm leading-6 text-[#594c35]"><div className="flex gap-2"><Info size={17} className="mt-0.5 shrink-0" /><p>{accountingActive ? "Data tersimpan pada jurnal usaha. Koreksi saldo dilakukan melalui pembukuan, bukan pengaturan pemantauan." : live ? "Data tersimpan pada usaha yang terhubung ke akun Anda. Periksa saldo awal sebelum meninjau proyeksi." : "Data contoh disimpan di browser ini. Jangan masukkan data keuangan usaha yang sebenarnya ke dalam pratinjau."}</p></div></section>
         </aside>
       </form>
     </>

@@ -10,9 +10,9 @@ import { revalidatePath } from "next/cache";
 
 type AccountInput = { code: string; name: string; role: AccountRole };
 
-async function accountingOwner() {
+async function accountingOwner(allowManager = false) {
   const context = await ownerContext();
-  if (context.status !== "ok" || context.role !== "owner")
+  if (context.status !== "ok" || (!allowManager && context.role !== "owner"))
     return { ok: false as const, message: "Hanya pemilik yang dapat membuka pembukuan akuntansi." };
   const { data, error } = await context.supabase.from("accounting_accounts")
     .select("code, name, class, role, normal, active")
@@ -27,8 +27,8 @@ function refreshAccountingPages() {
 }
 
 export async function listAccountingAccounts() {
-  const result = await accountingOwner();
-  return result.ok ? { ok: true as const, accounts: result.accounts }
+  const result = await accountingOwner(true);
+  return result.ok ? { ok: true as const, accounts: result.accounts, role: result.context.role }
     : { ok: false as const, message: result.message };
 }
 
@@ -85,8 +85,10 @@ export async function postBasicAccountingEvent(input: BasicAccountingEvent) {
     || typeof input.sourceId !== "string"
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.sourceId))
     return { ok: false as const, message: "Jenis atau nomor transaksi tidak valid." };
-  const owner = await accountingOwner();
+  const owner = await accountingOwner(true);
   if (!owner.ok) return { ok: false as const, message: owner.message };
+  if (owner.context.role === "manager" && input.type !== "cash_sale")
+    return { ok: false as const, message: "Pengelola hanya dapat mencatat penjualan tunai." };
   let journal;
   try {
     journal = journalForEvent(input, owner.accounts);
@@ -94,11 +96,18 @@ export async function postBasicAccountingEvent(input: BasicAccountingEvent) {
     return { ok: false as const, message: error instanceof Error ? error.message : "Transaksi tidak valid." };
   }
   if (journal.date > todayInJakarta()) return { ok: false as const, message: "Tanggal transaksi tidak boleh di masa depan." };
-  const { error } = await owner.context.supabase.rpc("post_accounting_journal", {
-    p_business_id: owner.context.business.id, p_entry_date: journal.date,
-    p_source_type: journal.sourceType, p_source_id: journal.sourceId,
-    p_description: journal.description, p_lines: journal.lines,
-  });
+  const { error } = owner.context.role === "manager" && input.type === "cash_sale"
+    ? await owner.context.supabase.rpc("post_staff_cash_sale", {
+      p_business_id: owner.context.business.id, p_entry_date: journal.date,
+      p_source_id: journal.sourceId, p_description: journal.description,
+      p_amount: input.amount, p_cash_account_code: input.cash,
+      p_revenue_account_code: input.revenue,
+    })
+    : await owner.context.supabase.rpc("post_accounting_journal", {
+      p_business_id: owner.context.business.id, p_entry_date: journal.date,
+      p_source_type: journal.sourceType, p_source_id: journal.sourceId,
+      p_description: journal.description, p_lines: journal.lines,
+    });
   if (error) return { ok: false as const, message: error.code === "23505"
     ? "Transaksi ini sudah dibukukan. Muat ulang laporan untuk melihat hasilnya."
     : error.code === "23514" ? "Tanggal transaksi mendahului saldo pembuka atau jurnal ditolak."

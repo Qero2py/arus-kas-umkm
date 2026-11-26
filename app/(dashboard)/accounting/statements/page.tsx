@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 import { PageHeading } from "@/components/page-heading";
+import { AccountingEquation } from "@/components/accounting-equation";
 import { ACCOUNTING_NOTE_POLICIES } from "@/lib/accounting-notes";
 import { formatDemoDate } from "@/lib/demo-calculations";
 import { formatRupiah } from "@/lib/format";
@@ -78,6 +79,7 @@ async function Content({ searchParams }: { searchParams: Filters }) {
       <a href={`/accounting/statements/export/xlsx?asOf=${encodeURIComponent(dates.asOf)}`}
         className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 text-sm font-semibold text-primary hover:border-primary">Unduh Excel</a>
     </div>
+    <AccountingEquation assets={position.totalAssets.current} liabilities={position.totalLiabilities.current} equity={position.totalEquity.current} />
     <div className="grid gap-5 xl:grid-cols-2">
       <ReportTable title="Laporan laba rugi"
         currentLabel={`${formatDemoDate(dates.currentStart)}–${formatDemoDate(dates.asOf)}`}

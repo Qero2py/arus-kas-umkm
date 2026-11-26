@@ -25,6 +25,11 @@ async function updatedWorkspace() {
   return result.status === "ok" ? { ok: true as const, workspace: result.workspace } : { ok: false as const };
 }
 
+async function legacyWritable(supabase: Awaited<ReturnType<typeof createClient>>, businessId: string) {
+  const { data, error } = await supabase.rpc("get_accounting_cash_workspace", { p_business_id: businessId });
+  return error ? null : data === null;
+}
+
 export async function createBusiness(input: { name: string; openingBalance: number; threshold: number; horizon: 7 | 14 | 30 }) {
   if (!validText(input.name, 100) || !nonnegativeAmount(input.openingBalance) || !nonnegativeAmount(input.threshold)
     || ![7, 14, 30].includes(input.horizon)) return { ok: false as const, message: "Periksa nama usaha dan nominalnya." };
@@ -41,8 +46,12 @@ export async function saveLiveSettings(input: { openingBalance: number; threshol
   if (!nonnegativeAmount(input.openingBalance) || !nonnegativeAmount(input.threshold) || ![7, 14, 30].includes(input.horizon)) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok" || context.role !== "owner") return { ok: false as const };
+  const writable = await legacyWritable(context.supabase, context.business.id);
+  if (writable === null) return { ok: false as const };
+  const accountingActive = !writable;
   const { error } = await context.supabase.from("businesses").update({
-    opening_balance: input.openingBalance, cash_threshold: input.threshold, projection_horizon: input.horizon,
+    ...(accountingActive ? {} : { opening_balance: input.openingBalance }),
+    cash_threshold: input.threshold, projection_horizon: input.horizon,
   }).eq("id", context.business.id);
   return error ? { ok: false as const } : updatedWorkspace();
 }
@@ -107,6 +116,7 @@ export async function addLiveEntry(input: EntryInput) {
   if (!validEntry(input) || reservedPaymentCategory(input.category.trim())) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { error } = await context.supabase.from("transactions").insert({
     business_id: context.business.id, entry_date: input.date, title: input.title.trim(),
     category: input.category.trim(), type: input.type, amount: input.amount, method: input.method.trim(),
@@ -118,6 +128,7 @@ export async function updateLiveEntry(id: string, input: EntryInput) {
   if (!validEntry(input)) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { data: existing, error: readError } = await context.supabase.from("transactions")
     .select("id, obligation_id, type").eq("id", id).eq("business_id", context.business.id).maybeSingle();
   if (readError || !existing) return { ok: false as const };
@@ -134,6 +145,7 @@ export async function deleteLiveEntry(id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { data, error } = await context.supabase.from("transactions")
     .delete().eq("id", id).eq("business_id", context.business.id).select("id").maybeSingle();
   return error || !data ? { ok: false as const } : updatedWorkspace();
@@ -145,6 +157,7 @@ export async function addLiveObligation(input: ObligationInput) {
     || !positiveAmount(input.amount) || (input.kind !== "utang" && input.kind !== "piutang")) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { error } = await context.supabase.from("obligations").insert({
     business_id: context.business.id, kind: input.kind, party: input.party.trim(),
     description: input.description.trim(), obligation_date: input.date, due_date: input.dueDate, amount: input.amount,
@@ -158,6 +171,7 @@ export async function updateLiveObligation(id: string, input: Omit<ObligationInp
     || !isValidIsoDate(input.dueDate) || !positiveAmount(input.amount)) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { data, error } = await context.supabase.from("obligations")
     .update({ party: input.party.trim(), description: input.description.trim(), obligation_date: input.date,
       due_date: input.dueDate, amount: input.amount })
@@ -169,6 +183,7 @@ export async function deleteLiveObligation(id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { data, error } = await context.supabase.from("obligations")
     .delete().eq("id", id).eq("business_id", context.business.id).select("id").maybeSingle();
   return error || !data ? { ok: false as const } : updatedWorkspace();
@@ -178,6 +193,7 @@ export async function recordLivePayment(id: string, amount: number, method: stri
   if (!positiveAmount(amount) || !validText(method, 40) || !isValidIsoDate(date) || date > todayInJakarta()) return { ok: false as const };
   const context = await ownerContext();
   if (context.status !== "ok") return { ok: false as const };
+  if (!(await legacyWritable(context.supabase, context.business.id))) return { ok: false as const };
   const { data: item, error: readError } = await context.supabase.from("obligations")
     .select("id, kind, party").eq("id", id).eq("business_id", context.business.id).maybeSingle();
   if (readError || !item) return { ok: false as const };

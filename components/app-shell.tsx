@@ -2,45 +2,114 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  ArrowLeftRight, BookOpenText, Boxes, ChartNoAxesCombined, ChevronRight,
+  CircleDollarSign, ClipboardList, ContactRound, FileChartColumn, Landmark,
+  LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, WalletCards, X,
+  type LucideIcon,
+} from "lucide-react";
 import { signOut } from "@/app/actions/workspace";
 import { useDemoSettings } from "@/components/demo-settings-provider";
 import { useDemoLedger } from "@/components/demo-ledger-provider";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", ownerOnly: false },
-  { href: "/transactions", label: "Buku kas", ownerOnly: false },
-  { href: "/obligations", label: "Utang & piutang", ownerOnly: false },
-  { href: "/projection", label: "Proyeksi", ownerOnly: true },
-  { href: "/accounting/accounts", label: "Akuntansi", ownerOnly: true, liveOnly: true },
-  { href: "/settings", label: "Pengaturan", ownerOnly: true },
-  { href: "/access", label: "Akses", ownerOnly: true, liveOnly: true },
+type NavItem = { href: string; label: string; icon: LucideIcon; ownerOnly?: boolean; liveOnly?: boolean; previewOnly?: boolean };
+type NavSection = { title: string; items: NavItem[] };
+
+const sections: NavSection[] = [
+  { title: "Ringkasan", items: [
+    { href: "/dashboard", label: "Beranda", icon: LayoutDashboard },
+    { href: "/projection", label: "Proyeksi kas", icon: ChartNoAxesCombined, ownerOnly: true },
+  ] },
+  { title: "Kegiatan usaha", items: [
+    { href: "/transactions", label: "Kas & bank", icon: ArrowLeftRight },
+    { href: "/accounting/credit", label: "Tagihan tempo", icon: CircleDollarSign, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/inventory", label: "Produk & stok", icon: Boxes, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/assets", label: "Aset tetap", icon: Landmark, liveOnly: true, ownerOnly: true },
+    { href: "/obligations", label: "Utang & piutang", icon: CircleDollarSign, previewOnly: true },
+  ] },
+  { title: "Laporan", items: [
+    { href: "/accounting/statements", label: "Laporan keuangan", icon: FileChartColumn, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/cash-flow", label: "Arus kas aktual", icon: ChartNoAxesCombined, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/reports", label: "Jurnal & buku besar", icon: BookOpenText, liveOnly: true, ownerOnly: true },
+  ] },
+  { title: "Data & pengaturan", items: [
+    { href: "/accounting/contacts", label: "Pelanggan & pemasok", icon: ContactRound, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/accounts", label: "Daftar akun", icon: ClipboardList, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/opening", label: "Saldo pembuka", icon: WalletCards, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/controls", label: "Tutup buku & koreksi", icon: ShieldCheck, liveOnly: true, ownerOnly: true },
+    { href: "/settings", label: "Pengaturan usaha", icon: Settings2, ownerOnly: true },
+    { href: "/access", label: "Hak akses", icon: ShieldCheck, liveOnly: true, ownerOnly: true },
+  ] },
 ];
 
-const sectionNames: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/transactions": "Buku kas",
-  "/obligations": "Utang & piutang",
-  "/projection": "Proyeksi kas",
-  "/accounting/accounts": "Daftar akun",
-  "/settings": "Pengaturan",
-  "/access": "Akses usaha",
+type SidebarProps = {
+  pathname: string; live: boolean; role: "owner" | "manager";
+  businessName: string; ownerEmail: string; onNavigate?: () => void; onSignOut: () => void;
 };
+
+function SidebarContent({ pathname, live, role, businessName, ownerEmail, onNavigate, onSignOut }: SidebarProps) {
+  return <div className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
+    <div className="flex min-h-[78px] items-center gap-3 border-b border-sidebar-border px-5">
+      <Link href="/dashboard" onClick={onNavigate} className="grid size-11 place-items-center rounded-2xl bg-sidebar-primary text-xl font-black text-sidebar-primary-foreground shadow-lg shadow-black/10" aria-label="Arus, ke beranda">a.</Link>
+      <div><p className="text-lg font-bold tracking-[-0.06em]">arus<span className="text-sidebar-primary">.</span></p><p className="text-[11px] text-sidebar-foreground/65">Pembukuan usaha lebih jelas</p></div>
+    </div>
+    <div className="mx-4 mt-5 rounded-2xl border border-sidebar-border bg-sidebar-accent/75 p-3.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-sidebar-foreground/60">Usaha aktif</p>
+      <p className="mt-1 truncate text-sm font-semibold" title={businessName}>{businessName}</p>
+      <p className="mt-1 text-xs text-sidebar-foreground/70">{live ? (role === "owner" ? "Akun pemilik" : "Akun pengelola") : "Pratinjau produk"}</p>
+    </div>
+    <nav className="mt-3 flex-1 space-y-5 overflow-y-auto px-3 pb-6 pt-2" aria-label="Navigasi utama">
+      {sections.map((section) => {
+        const items = section.items.filter((item) => {
+          if (item.liveOnly && !live) return false;
+          if (item.previewOnly && live && role !== "manager") return false;
+          if (item.ownerOnly && live && role !== "owner") return false;
+          return true;
+        });
+        if (!items.length) return null;
+        return <div key={section.title}>
+          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.17em] text-sidebar-foreground/55">{section.title}</p>
+          <div className="space-y-0.5">{items.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const Icon = item.icon;
+            return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
+              className={`group flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200 motion-safe:hover:translate-x-1 ${active ? "bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/78 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+              <Icon size={17} strokeWidth={active ? 2.3 : 1.9} aria-hidden="true" /><span className="flex-1">{item.label}</span>
+              {active && <ChevronRight size={15} aria-hidden="true" />}
+            </Link>;
+          })}</div>
+        </div>;
+      })}
+    </nav>
+    <div className="border-t border-sidebar-border p-4">
+      <p className="truncate px-2 text-xs text-sidebar-foreground/70" title={ownerEmail}>{live ? ownerEmail : "Mode pratinjau"}</p>
+      {live && <button type="button" onClick={onSignOut} className="mt-2 flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-sidebar-foreground/85 hover:bg-sidebar-accent"><LogOut size={16} aria-hidden="true" />Keluar akun</button>}
+    </div>
+  </div>;
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const currentSection = pathname.startsWith("/accounting/") ? "Akuntansi" : sectionNames[pathname] ?? "Dashboard";
   const { ready: settingsReady, storageError: settingsError, resetDemo: resetSettings } = useDemoSettings();
   const { ready: ledgerReady, storageError: ledgerError, resetDemo: resetLedger, live, businessName, ownerEmail, role } = useDemoLedger();
-  const visibleNav = navItems.filter((item) => (!item.liveOnly || live) && (!item.ownerOnly || !live || role === "owner"));
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [resetFailed, setResetFailed] = useState(false);
   const storageUnavailable = settingsError === "unavailable" || ledgerError === "unavailable";
   const storageInvalid = settingsError === "invalid" || ledgerError === "invalid";
   const remoteError = settingsError === "remote" || ledgerError === "remote";
   const dataReady = settingsReady && ledgerReady;
   const dataError = storageUnavailable || storageInvalid || remoteError;
-  const ownerLabel = live ? (ownerEmail.split("@")[0] || "Akun") : "Nadia";
+  const currentItem = sections.flatMap((section) => section.items).find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const currentSection = currentItem?.label ?? "Beranda";
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
 
   function restoreInvalidDemoData() {
     if (!window.confirm("Data demo yang rusak akan diganti dengan data contoh awal. Perubahan pada bagian itu akan hilang. Lanjutkan?")) return;
@@ -49,41 +118,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     setResetFailed(!settingsRestored || !ledgerRestored);
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border/80 bg-background">
-        <div className="mx-auto flex min-h-[72px] max-w-[1280px] items-center justify-between gap-5 px-5 sm:px-8 lg:px-12">
-          <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5" aria-label="Arus, ke dashboard">
-            <span className="grid size-8 place-items-center rounded-[10px] bg-primary text-[15px] font-semibold text-primary-foreground">a.</span>
-            <span className="text-[17px] font-semibold tracking-[-0.05em]">arus<span className="text-primary">.</span></span>
-          </Link>
-          <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex" aria-label="Navigasi utama">
-            {visibleNav.map((item) => {
-              const active = pathname === item.href || (item.href === "/accounting/accounts" && pathname.startsWith("/accounting/")) || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-              return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`rounded-lg px-3 py-2 text-sm transition-colors ${active ? "bg-secondary font-semibold text-foreground ring-1 ring-border" : "font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{item.label}</Link>;
-            })}
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            {!live && <span className="hidden items-center gap-1.5 text-xs font-medium text-foreground sm:inline-flex"><span className="size-2 rounded-full bg-[#aa884c]" />Pratinjau</span>}
-            <span className="hidden h-5 w-px bg-border sm:block" />
-            <span className="max-w-28 truncate text-right sm:max-w-40"><span className="block truncate text-sm font-medium">{live && !dataReady ? "Memuat…" : ownerLabel}</span><span className="block truncate text-xs text-muted-foreground">{live && !dataReady ? "Usaha" : `${businessName}${live ? ` · ${role === "owner" ? "Pemilik" : "Pengelola"}` : ""}`}</span></span>
-            {live && dataReady ? <button type="button" onClick={async () => { await signOut(); router.replace("/login"); router.refresh(); }} className="min-h-11 rounded-lg px-2 text-xs font-semibold text-primary underline underline-offset-4">Keluar</button> : <span className="grid size-8 place-items-center rounded-full bg-[#e8dfca] text-xs font-semibold text-[#594c35]">NP</span>}
-          </div>
-        </div>
-        <div className="border-t border-border/60 md:hidden">
-          <nav className="mx-auto grid max-w-[1280px] grid-cols-3 gap-1 px-4 py-2 sm:px-7" aria-label="Navigasi utama">
-            {visibleNav.map((item) => {
-              const active = pathname === item.href || (item.href === "/accounting/accounts" && pathname.startsWith("/accounting/")) || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-              return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`flex min-h-11 items-center justify-center rounded-md px-1 py-2 text-center text-xs sm:text-sm ${active ? "bg-primary font-semibold text-primary-foreground" : "font-medium text-foreground hover:bg-secondary"}`}>{item.label}</Link>;
-            })}
-          </nav>
-        </div>
-      </header>
+  async function handleSignOut() {
+    setMobileOpen(false);
+    await signOut();
+    router.replace("/login");
+    router.refresh();
+  }
 
-      <div className="mx-auto flex max-w-[1280px] items-center gap-2 px-5 pt-5 text-xs text-muted-foreground sm:px-8 lg:px-12">
-        <span>Usaha</span><span aria-hidden="true">/</span><span className="text-foreground">{currentSection}</span>
-      </div>
-      <main className="mx-auto w-full max-w-[1280px] px-5 pb-12 pt-5 sm:px-8 sm:pt-7 lg:px-12">
+  const sidebarProps = { pathname, live, role, businessName, ownerEmail, onSignOut: () => void handleSignOut() };
+  return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[264px_minmax(0,1fr)]">
+    <aside className="sticky top-0 hidden h-screen lg:block"><SidebarContent {...sidebarProps} /></aside>
+    {mobileOpen && <div className="fixed inset-0 z-50 lg:hidden">
+      <button type="button" className="absolute inset-0 bg-[#122820]/70 backdrop-blur-[2px]" aria-label="Tutup menu" onClick={() => setMobileOpen(false)} />
+      <aside id="mobile-sidebar" role="dialog" aria-modal="true" aria-label="Menu navigasi" className="sidebar-enter relative h-full w-[min(320px,88vw)] shadow-2xl">
+        <SidebarContent {...sidebarProps} onNavigate={() => setMobileOpen(false)} />
+        <button type="button" onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 grid size-10 place-items-center rounded-xl text-sidebar-foreground hover:bg-sidebar-accent" aria-label="Tutup menu"><X size={20} /></button>
+      </aside>
+    </div>}
+    <div className="min-w-0">
+      <header className="sticky top-0 z-30 flex min-h-[68px] items-center gap-3 border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
+        <button type="button" onClick={() => setMobileOpen(true)} className="grid size-11 place-items-center rounded-xl border border-border bg-card text-foreground lg:hidden" aria-label="Buka menu" aria-expanded={mobileOpen} aria-controls="mobile-sidebar"><Menu size={20} /></button>
+        <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ruang kerja</p><p className="truncate text-sm font-semibold">{currentSection}</p></div>
+        <span className="hidden max-w-56 truncate rounded-full border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground sm:block">{live && !dataReady ? "Memuat usaha…" : businessName}</span>
+      </header>
+      <main className="mx-auto w-full max-w-[1440px] px-4 pb-12 pt-6 sm:px-7 sm:pt-8 lg:px-10">
         {!dataReady ? <div role="status" className="rounded-xl border border-border bg-card p-6 text-sm text-foreground">{live ? "Memuat data usaha…" : "Memuat data contoh…"}</div>
           : dataError ? <section role="alert" className="max-w-xl rounded-xl border border-[#dba99f] bg-[#fff3f0] p-5 text-[#812e22] sm:p-6">
             <h1 className="text-lg font-semibold">{remoteError ? "Data usaha belum bisa dimuat" : "Data demo belum bisa dibuka"}</h1>
@@ -91,12 +149,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             {resetFailed && <p className="mt-3 text-sm font-semibold">Pemulihan gagal karena browser belum dapat menyimpan data. Periksa pengaturan penyimpanan situs.</p>}
             <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => window.location.reload()} className="min-h-11 rounded-lg border border-[#a65245] px-4 text-sm font-semibold">Muat ulang</button>{storageInvalid && !storageUnavailable && <button type="button" onClick={restoreInvalidDemoData} className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">Pulihkan data contoh</button>}</div>
           </section> : null}
-        <div hidden={!dataReady || dataError}>{children}</div>
-        <footer className="mt-12 flex flex-wrap items-center justify-between gap-2 border-t border-border/80 pt-4 text-xs text-muted-foreground">
-          <span>arus. · Catatan kas {live && !dataReady ? "usaha" : businessName}</span>
-          <span>{live ? "Data usaha" : "Pratinjau produk · Data simulasi"}</span>
-        </footer>
+        <div className="page-enter" hidden={!dataReady || Boolean(dataError)}>{children}</div>
+        <footer className="mt-14 flex flex-wrap items-center justify-between gap-2 border-t border-border/80 pt-5 text-xs text-muted-foreground"><span>arus. · {businessName}</span><span>{live ? "Data usaha tersimpan" : "Pratinjau produk · Data simulasi"}</span></footer>
       </main>
     </div>
-  );
+  </div>;
 }
