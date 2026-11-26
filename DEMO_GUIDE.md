@@ -8,7 +8,7 @@ Data pembuka akuntansi bertanggal 30 Oktober 2026. Catatan kas lama tetap tersed
 
 1. **Ringkasan → Beranda dan Proyeksi kas:** periksa saldo yang kini diambil dari jurnal, lalu lihat proyeksi berdasarkan transaksi operasional dan tagihan terbuka.
 2. **Kegiatan usaha → Kas & bank:** lihat mutasi semua akun kas/bank. Pilih **Catat transaksi** untuk mencoba penjualan tunai, biaya, setoran modal, prive, atau transfer pada bulan yang masih terbuka. Catatan sebelum pembukuan tersedia melalui tautan **Arsip lama** pada halaman ini.
-3. **Kegiatan usaha → Tagihan tempo:** periksa pelanggan/pemasok, invoice/tagihan, pembayaran sebagian, dan ringkasan umur piutang/utang dalam satu alur.
+3. **Kegiatan usaha → Tagihan tempo:** periksa pelanggan/pemasok, invoice/tagihan, pembayaran sebagian, dan ringkasan umur piutang/utang dalam satu alur. Buka invoice penjualan operasional untuk mencetak format 58/80 mm, mengunduh PDF, atau memilih WhatsApp dari menu berbagi perangkat. Membuka percakapan WhatsApp tidak otomatis mengirim lampiran.
 4. **Kegiatan usaha → Produk & stok:** periksa produk `Beras Premium Demo`, layanan `Jasa Pesanan Demo`, kartu stok, pembelian, penjualan, HPP rata-rata bergerak, dan penyesuaian stok. Coba koreksi pada mutasi tunai terbaru yang memenuhi syarat.
 5. **Kegiatan usaha → Aset tetap:** periksa dua aset contoh, nilai perolehan, umur manfaat, dan perhitungan penyusutan. November 2026 belum disusutkan agar tombol proses bulan tersebut dapat diuji.
 6. **Laporan → Laporan keuangan:** baca laba rugi, posisi keuangan, gambar persamaan neraca, dan CaLK ringkas. Pilih 26 November 2026, lalu unduh PDF atau Excel. Laporan ini masih draf.
