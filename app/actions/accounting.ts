@@ -96,7 +96,7 @@ export async function postBasicAccountingEvent(input: BasicAccountingEvent) {
     return { ok: false as const, message: error instanceof Error ? error.message : "Transaksi tidak valid." };
   }
   if (journal.date > todayInJakarta()) return { ok: false as const, message: "Tanggal transaksi tidak boleh di masa depan." };
-  const { error } = owner.context.role === "manager" && input.type === "cash_sale"
+  const { data, error } = owner.context.role === "manager" && input.type === "cash_sale"
     ? await owner.context.supabase.rpc("post_staff_cash_sale", {
       p_business_id: owner.context.business.id, p_entry_date: journal.date,
       p_source_id: journal.sourceId, p_description: journal.description,
@@ -113,5 +113,5 @@ export async function postBasicAccountingEvent(input: BasicAccountingEvent) {
     : error.code === "23514" ? "Tanggal transaksi mendahului saldo pembuka atau jurnal ditolak."
       : "Transaksi belum dibukukan. Periksa akun dan koneksi lalu coba lagi." };
   refreshAccountingPages();
-  return { ok: true as const };
+  return { ok: true as const, journalId: typeof data === "string" ? data : "" };
 }

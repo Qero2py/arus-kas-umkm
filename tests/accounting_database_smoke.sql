@@ -33,6 +33,8 @@ declare
   v_cash_workspace jsonb;
   v_legacy_entry uuid;
   v_legacy_obligation uuid;
+  v_staff_journal uuid;
+  v_owner_sale uuid;
 begin
   if (select count(*) from public.accounting_accounts where business_id = v_business) <> 15 then
     raise exception 'Account template did not seed or is not visible to owner';
@@ -80,10 +82,10 @@ begin
     raise exception 'Legacy obligation accepted deletion after cutover';
   exception when check_violation then null; end;
 
-  perform public.post_accounting_journal(
+  select public.post_accounting_journal(
     v_business, current_date - 1, 'cash_sale', 'sale-1', 'Penjualan tunai uji',
     '[{"accountCode":"1010","debit":50000,"credit":0},{"accountCode":"4100","debit":0,"credit":50000}]'::jsonb
-  );
+  ) into v_owner_sale;
   v_cash_workspace := public.get_accounting_cash_workspace(v_business);
   if v_cash_workspace->>'openingBalance' <> '100000'
     or jsonb_array_length(v_cash_workspace->'entries') <> 1
@@ -165,8 +167,15 @@ begin
   if public.get_accounting_cash_workspace(v_business)->>'openingBalance' <> '100000' then
     raise exception 'Business manager cannot read the shared cash workspace';
   end if;
-  perform public.post_staff_cash_sale(v_business,current_date - 1,
-    '10000000-0000-4000-8000-000000000002','Penjualan petugas',3000,'1010','4100');
+  select public.post_staff_cash_sale(v_business,current_date - 1,
+    '10000000-0000-4000-8000-000000000002','Penjualan petugas',3000,'1010','4100') into v_staff_journal;
+  if public.get_cash_sale_receipt(v_business,v_staff_journal)->>'amount'<>'3000' then
+    raise exception 'Staff receipt does not match posted sale';
+  end if;
+  begin
+    perform public.get_cash_sale_receipt(v_business,v_owner_sale);
+    raise exception 'Manager read another user cash-sale receipt';
+  exception when insufficient_privilege then null; end;
   begin
     perform public.post_staff_cash_sale(v_business,current_date - 1,
       '10000000-0000-4000-8000-000000000003','Akun salah',3000,'6100','4100');
@@ -188,11 +197,18 @@ begin
     null;
   end;
   perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
+  if public.get_cash_sale_receipt(v_business,v_staff_journal)->>'amount'<>'3000' then
+    raise exception 'Owner cannot read staff cash-sale receipt';
+  end if;
 
   perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000099', true);
   begin
     perform public.get_accounting_cash_workspace(v_business);
     raise exception 'Unrelated user read the cash workspace';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.get_cash_sale_receipt(v_business,v_staff_journal);
+    raise exception 'Unrelated user read a cash-sale receipt';
   exception when insufficient_privilege then null; end;
   perform set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
 

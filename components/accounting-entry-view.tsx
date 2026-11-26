@@ -44,6 +44,7 @@ export function AccountingEntryView({ accounts, today, role }: { accounts: Accou
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [lastSaleJournalId, setLastSaleJournalId] = useState("");
   const sourceId = useRef<string | null>(null);
   const selected = events.find((event) => event.type === type) ?? events[0];
 
@@ -72,6 +73,7 @@ export function AccountingEntryView({ accounts, today, role }: { accounts: Accou
     setSaving(true);
     setError("");
     setMessage("");
+    setLastSaleJournalId("");
     try {
       const result = await postBasicAccountingEvent(input);
       if (!result.ok) setError(result.message);
@@ -80,6 +82,7 @@ export function AccountingEntryView({ accounts, today, role }: { accounts: Accou
         setDescription("");
         setAmount("");
         setMessage("Transaksi berhasil dibukukan. Lihat mutasinya pada buku besar.");
+        if (type === "cash_sale" && result.journalId) setLastSaleJournalId(result.journalId);
       }
     } catch {
       setError("Transaksi belum dibukukan. Periksa koneksi lalu coba lagi.");
@@ -94,7 +97,7 @@ export function AccountingEntryView({ accounts, today, role }: { accounts: Accou
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.8fr)]">
       <form onSubmit={submit} className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
         <label className="block text-sm font-medium">Jenis transaksi
-          <select value={type} onChange={(event) => { setType(event.target.value as EventType); sourceId.current = null; setError(""); }}
+          <select value={type} onChange={(event) => { setType(event.target.value as EventType); sourceId.current = null; setError(""); setLastSaleJournalId(""); }}
             className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm">
             {events.filter((item) => role === "owner" || item.type === "cash_sale").map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
           </select>
@@ -124,7 +127,7 @@ export function AccountingEntryView({ accounts, today, role }: { accounts: Accou
           {type === "cash_transfer" && <AccountSelect accounts={accounts} role="cash" value={toCash} onChange={setToCash} label="Akun kas tujuan (debit)" />}
         </div>
         <button disabled={saving} type="submit" className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60">{saving ? "Membukukan…" : "Bukukan transaksi"}</button>
-        {message && <p role="status" className="text-sm text-[#356548]">{message} <Link className="font-semibold underline" href="/accounting/reports">Buka laporan</Link></p>}
+        {message && <p role="status" className="text-sm text-[#356548]">{message} {lastSaleJournalId && <Link className="font-semibold underline" href={`/accounting/entries/${lastSaleJournalId}/receipt`}>Cetak struk</Link>} {role === "owner" && <Link className="font-semibold underline" href="/accounting/reports">Buka laporan</Link>}</p>}
         {error && <p role="alert" className="text-sm text-[#812e22]">{error}</p>}
       </form>
       <aside className="h-fit space-y-4">
