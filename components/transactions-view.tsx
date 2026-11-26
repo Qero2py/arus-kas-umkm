@@ -32,7 +32,8 @@ export function TransactionsView() {
 
   const visible = useMemo(() => entriesForPeriod(entries, period, asOf)
     .filter((entry) => filter === "all" || entry.type === filter)
-    .filter((entry) => `${entry.title} ${entry.category} ${entry.method}`.toLocaleLowerCase("id-ID").includes(query.toLocaleLowerCase("id-ID")))
+    .filter((entry) => `${entry.title} ${entry.category} ${entry.method} ${entry.date} ${entry.dateLabel} ${entry.amount} ${formatRupiah(entry.amount)}`
+      .toLocaleLowerCase("id-ID").includes(query.trim().toLocaleLowerCase("id-ID")))
     .sort((a, b) => b.date.localeCompare(a.date)), [entries, filter, period, query, asOf]);
 
   function openNew() {
@@ -112,7 +113,7 @@ export function TransactionsView() {
           <div className="flex gap-1 rounded-lg bg-secondary p-1" role="group" aria-label="Jenis transaksi">
             {([{ id: "all", label: "Semua" }, { id: "in", label: "Masuk" }, { id: "out", label: "Keluar" }] as const).map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)} className={`min-h-11 flex-1 rounded-md px-3 text-sm font-semibold sm:flex-none ${filter === item.id ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}>{item.label}</button>)}
           </div>
-          <label className="relative block"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari transaksi" aria-label="Cari transaksi" className="h-11 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm outline-none focus:border-primary" /></label>
+          <label className="relative block"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); if (event.target.value.trim()) setPeriod("all"); }} placeholder="Cari nama, kategori, tanggal, atau nominal" aria-label="Cari transaksi" className="h-11 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm outline-none focus:border-primary" /></label>
           <label className="flex items-center gap-2 text-sm font-medium">Periode <select value={period} onChange={(event) => setPeriod(event.target.value === "all" ? "all" : Number(event.target.value) as 7 | 30)} className="h-11 flex-1 rounded-lg border border-border bg-background px-3 text-sm sm:flex-none"><option value="7">7 hari</option><option value="30">30 hari</option><option value="all">Semua tanggal</option></select></label>
         </div>
 

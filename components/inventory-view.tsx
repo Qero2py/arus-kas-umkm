@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
-import { searchAccountingContacts } from "@/app/actions/accounting-credit";
+import { ContactPicker } from "@/components/contact-picker";
 import { activateInventory, createInventoryProduct, postInventoryEvent } from "@/app/actions/inventory";
 import { PageHeading } from "@/components/page-heading";
 import type { Account } from "@/lib/accounting";
@@ -19,7 +19,7 @@ function AccountSelect({ label, roles, accounts, value, onChange }: {
   label: string; roles: Account["role"][]; accounts: Account[]; value: string; onChange: (value: string) => void;
 }) {
   return <label className="block text-sm font-medium">{label}<select value={value} onChange={(event) => onChange(event.target.value)} required className={field}>
-    <option value="">Pilih akun</option>
+    {!value && <option value="" disabled hidden>Pilih akun</option>}
     {accounts.filter((account) => account.active && roles.includes(account.role)).map((account) =>
       <option key={account.code} value={account.code}>{account.code} · {account.name}</option>)}
   </select></label>;
@@ -52,8 +52,6 @@ export function InventoryView({ businessName, products, openings, bookDate, acco
   const [cashAccount, setCashAccount] = useState("");
   const [controlAccount, setControlAccount] = useState("");
   const [expenseAccount, setExpenseAccount] = useState("");
-  const [contactQuery, setContactQuery] = useState("");
-  const [contacts, setContacts] = useState<{ id: string; name: string }[]>([]);
   const [contactId, setContactId] = useState("");
   const [documentNo, setDocumentNo] = useState("");
   const [dueDate, setDueDate] = useState(today);
@@ -91,15 +89,6 @@ export function InventoryView({ businessName, products, openings, bookDate, acco
       else { setOpeningMessage("Stok awal cocok dengan buku besar dan sudah diaktifkan."); router.refresh(); }
     } catch { setOpeningError("Stok awal belum aktif. Periksa koneksi lalu coba lagi."); }
     finally { setOpeningBusy(false); }
-  }
-
-  async function findContacts() {
-    setEventError(""); setContacts([]); setContactId("");
-    try {
-      const result = await searchAccountingContacts(contactQuery, eventKind === "sale" ? "sale" : "purchase");
-      if (!result.ok) setEventError(result.message);
-      else { setContacts(result.contacts); if (!result.contacts.length) setEventError("Kontak tidak ditemukan. Tambahkan di halaman Kontak."); }
-    } catch { setEventError("Kontak belum dapat dicari."); }
   }
 
   async function submitEvent(event: FormEvent<HTMLFormElement>) {
@@ -175,14 +164,14 @@ export function InventoryView({ businessName, products, openings, bookDate, acco
         <p className="mt-1 text-xs leading-5 text-muted-foreground">Stok aktif sejak {bookDate}. Tanggal per produk harus berurutan. Pembelian dan opname dicatat di sini; penjualan pelanggan melalui <Link href="/cashier" className="font-semibold text-primary underline">Kasir</Link>.</p>
         <form onSubmit={submitEvent} className="mt-5 space-y-4">
           <label className="block text-sm font-medium">Jenis transaksi<select value={eventKind} onChange={(event) => {
-            setEventKind(event.target.value as EventKind); setContacts([]); setContactId(""); eventId.current = null;
+            setEventKind(event.target.value as EventKind); setContactId(""); eventId.current = null;
           }} className={field}>
             <option value="purchase">Pembelian stok</option><option value="opname">Stok opname</option>
           </select></label>
           <label className="block text-sm font-medium">Produk stok pada halaman ini<select value={selectedProduct?.id ?? ""} onChange={(event) => {
             setEventProductId(event.target.value); eventId.current = null;
           }} required className={field}>
-            <option value="">Pilih produk</option>{stockProducts.map((item) => <option key={item.id} value={item.id}>{item.sku} · {item.name} · {formatQuantity(item.qty_milli)} {item.unit}</option>)}
+            {!selectedProduct && <option value="" disabled hidden>Pilih produk</option>}{stockProducts.map((item) => <option key={item.id} value={item.id}>{item.sku} · {item.name} · {formatQuantity(item.qty_milli)} {item.unit}</option>)}
           </select></label>
           {selectedProduct && <p className="rounded-lg bg-secondary p-3 text-xs">Tersedia: {formatQuantity(selectedProduct.qty_milli)} {selectedProduct.unit} · nilai {formatRupiah(selectedProduct.stock_value)}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -192,12 +181,10 @@ export function InventoryView({ businessName, products, openings, bookDate, acco
           <label className="block text-sm font-medium">{eventKind === "opname" ? "Nilai perolehan jika stok sebelumnya nol (Rp)" : "Nominal total (Rp)"}<input type="number" min={eventKind === "opname" ? "0" : "1"} max={Number.MAX_SAFE_INTEGER} step="1" value={amount} onChange={(event) => setAmount(event.target.value)} required={eventKind !== "opname"} placeholder="0" className={field} /></label>
           {eventKind !== "opname" ? <>
             <label className="block text-sm font-medium">Pembayaran<select value={payment} onChange={(event) => {
-              setPayment(event.target.value as "cash" | "credit"); setContacts([]); setContactId(""); eventId.current = null;
+              setPayment(event.target.value as "cash" | "credit"); setContactId(""); eventId.current = null;
             }} className={field}><option value="cash">Tunai / bank</option><option value="credit">Tempo</option></select></label>
             {payment === "cash" ? <AccountSelect label="Akun kas / bank" roles={["cash"]} accounts={accounts} value={cashAccount} onChange={setCashAccount} /> : <>
-              <div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-sm font-medium">Cari {eventKind === "sale" ? "pelanggan" : "pemasok"}<input value={contactQuery} onChange={(event) => setContactQuery(event.target.value)} minLength={2} maxLength={80} placeholder="Ketik sedikitnya dua huruf" className={field} /></label>
-                <button type="button" onClick={findContacts} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-primary">Cari</button></div>
-              <label className="block text-sm font-medium">Kontak<select value={contactId} onChange={(event) => setContactId(event.target.value)} required className={field}><option value="">Pilih kontak</option>{contacts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              <ContactPicker key={eventKind} kind={eventKind === "sale" ? "sale" : "purchase"} value={contactId} onChange={setContactId} />
               <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-medium">Nomor dokumen<input value={documentNo} onChange={(event) => setDocumentNo(event.target.value.toUpperCase())} required maxLength={40} pattern="[A-Z0-9][A-Z0-9._/-]{0,39}" className={field} /></label>
                 <label className="block text-sm font-medium">Jatuh tempo<input type="date" min={eventDate} value={dueDate} onChange={(event) => setDueDate(event.target.value)} required className={field} /></label></div>
               <AccountSelect label={eventKind === "sale" ? "Akun piutang" : "Akun utang"} roles={eventKind === "sale" ? ["receivable"] : ["payable"]} accounts={accounts} value={controlAccount} onChange={setControlAccount} />

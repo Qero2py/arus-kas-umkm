@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
-import { searchAccountingContacts } from "@/app/actions/accounting-credit";
+import { ContactPicker } from "@/components/contact-picker";
 import { activateFixedAssets, registerFixedAsset, runFixedAssetDepreciation } from "@/app/actions/fixed-assets";
 import { PageHeading } from "@/components/page-heading";
 import type { Account } from "@/lib/accounting";
@@ -23,7 +23,7 @@ function AccountSelect({ label, role, accounts, value, onChange }: {
   label: string; role: Account["role"]; accounts: Account[]; value: string; onChange: (code: string) => void;
 }) {
   return <label className="block text-sm font-medium">{label}<select className={field} value={value} onChange={(event) => onChange(event.target.value)} required>
-    <option value="">Pilih akun</option>
+    {!value && <option value="" disabled hidden>Pilih akun</option>}
     {accounts.filter((item) => item.active && item.role === role).map((item) =>
       <option key={item.code} value={item.code}>{item.code} · {item.name}</option>)}
   </select></label>;
@@ -54,8 +54,6 @@ export function FixedAssetsView({ businessName, assets, book, accounts, deprecia
   const [expenseAccount, setExpenseAccount] = useState("");
   const [cashAccount, setCashAccount] = useState("");
   const [payableAccount, setPayableAccount] = useState("");
-  const [contactQuery, setContactQuery] = useState("");
-  const [contacts, setContacts] = useState<{ id: string; name: string }[]>([]);
   const [contactId, setContactId] = useState("");
   const [documentNo, setDocumentNo] = useState("");
   const [dueDate, setDueDate] = useState(today);
@@ -65,15 +63,6 @@ export function FixedAssetsView({ businessName, assets, book, accounts, deprecia
   const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const [bookError, setBookError] = useState(""); const [bookMessage, setBookMessage] = useState("");
   const id = useRef<string | null>(null);
-
-  async function findContacts() {
-    setError(""); setContacts([]); setContactId("");
-    try {
-      const result = await searchAccountingContacts(contactQuery, "purchase");
-      if (!result.ok) setError(result.message);
-      else { setContacts(result.contacts); if (!result.contacts.length) setError("Pemasok tidak ditemukan. Tambahkan di halaman Kontak."); }
-    } catch { setError("Pemasok belum dapat dicari."); }
-  }
 
   async function submitAsset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving) return;
@@ -135,7 +124,7 @@ export function FixedAssetsView({ businessName, assets, book, accounts, deprecia
           : "Masukkan semua aset yang saldonya sudah ada di buku besar. Aset pembuka tidak membuat jurnal baru."}</p>
         <form onSubmit={submitAsset} className="mt-5 space-y-4">
           {book && <label className="block text-sm font-medium">Cara bayar<select value={effectiveSource} onChange={(event) => {
-            setSourceKind(event.target.value as "cash" | "credit"); setContacts([]); setContactId(""); id.current = null;
+            setSourceKind(event.target.value as "cash" | "credit"); setContactId(""); id.current = null;
           }} className={field}><option value="cash">Tunai / bank</option><option value="credit">Tempo ke pemasok</option></select></label>}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium">Kode aset<input value={assetCode} onChange={(event) => setAssetCode(event.target.value.toUpperCase())} required maxLength={40} pattern="[A-Z0-9][A-Z0-9._/-]{0,39}" className={field} /></label>
@@ -153,8 +142,7 @@ export function FixedAssetsView({ businessName, assets, book, accounts, deprecia
             {category !== "land" && <><AccountSelect label="Akun akumulasi penyusutan" role="accumulated_depreciation" accounts={accounts} value={accumulatedAccount} onChange={setAccumulatedAccount} />
               <AccountSelect label="Akun beban penyusutan" role="depreciation_expense" accounts={accounts} value={expenseAccount} onChange={setExpenseAccount} /></>}</div>
           {book && (effectiveSource === "cash" ? <AccountSelect label="Akun kas / bank" role="cash" accounts={accounts} value={cashAccount} onChange={setCashAccount} /> : <>
-            <div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-sm font-medium">Cari pemasok<input value={contactQuery} onChange={(event) => setContactQuery(event.target.value)} minLength={2} maxLength={80} placeholder="Ketik sedikitnya dua huruf" className={field} /></label><button type="button" onClick={findContacts} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-primary">Cari</button></div>
-            <label className="block text-sm font-medium">Pemasok<select value={contactId} onChange={(event) => setContactId(event.target.value)} required className={field}><option value="">Pilih pemasok</option>{contacts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <ContactPicker kind="purchase" value={contactId} onChange={setContactId} />
             <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-medium">Nomor dokumen<input value={documentNo} onChange={(event) => setDocumentNo(event.target.value.toUpperCase())} required maxLength={40} pattern="[A-Z0-9][A-Z0-9._/-]{0,39}" className={field} /></label><label className="block text-sm font-medium">Jatuh tempo<input type="date" min={acquiredOn} value={dueDate} onChange={(event) => setDueDate(event.target.value)} required className={field} /></label></div>
             <AccountSelect label="Akun utang" role="payable" accounts={accounts} value={payableAccount} onChange={setPayableAccount} />
           </>)}

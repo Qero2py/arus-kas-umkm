@@ -104,7 +104,7 @@ export function AccountingCreditCorrections({ documents, payments, accounts, tod
         <h3 className="font-semibold">Koreksi dokumen biasa</h3>
         <label className="block text-sm font-medium">Dokumen
           <select className={field} value={documentId} onChange={(event) => chooseDocument(event.target.value)} required>
-            <option value="">Pilih dokumen pendapatan/beban</option>
+            <option value="" disabled hidden>Pilih dokumen pendapatan/beban</option>
             {documents.filter((row) => row.correctable).map((row) => <option key={row.id} value={row.id}>{row.documentNo} · {row.contactName}</option>)}
           </select>
         </label>
@@ -124,7 +124,7 @@ export function AccountingCreditCorrections({ documents, payments, accounts, tod
         <h3 className="font-semibold">Koreksi pembayaran</h3>
         <label className="block text-sm font-medium">Pembayaran
           <select className={field} value={paymentId} onChange={(event) => choosePayment(event.target.value)} required>
-            <option value="">Pilih pembayaran</option>
+            <option value="" disabled hidden>Pilih pembayaran</option>
             {payments.map((row) => <option key={row.id} value={row.id}>{documents.find((doc) => doc.id === row.documentId)?.documentNo ?? "Dokumen"} · {row.paidDate} · {formatRupiah(row.amount)}</option>)}
           </select>
         </label>
@@ -134,7 +134,7 @@ export function AccountingCreditCorrections({ documents, payments, accounts, tod
             <label className="text-sm font-medium">Tanggal koreksi<input type="date" required min={selectedPayment.paidDate} max={today} value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} className={field} /></label>
             <label className="text-sm font-medium">Nominal baru<input type="number" required min="1" max={paymentDocument.amount - paymentDocument.paid + selectedPayment.amount} step="1" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} className={field} /></label>
           </div>
-          <label className="block text-sm font-medium">Akun kas/bank<select required value={paymentCash} onChange={(event) => setPaymentCash(event.target.value)} className={field}><option value="">Pilih akun</option>{accounts.filter((account) => account.active && account.role === "cash").map((account) => <option key={account.code} value={account.code}>{account.code} · {account.name}</option>)}</select></label>
+          <label className="block text-sm font-medium">Akun kas/bank<select required value={paymentCash} onChange={(event) => setPaymentCash(event.target.value)} className={field}><option value="" disabled hidden>Pilih akun</option>{accounts.filter((account) => account.active && account.role === "cash").map((account) => <option key={account.code} value={account.code}>{account.code} · {account.name}</option>)}</select></label>
           <label className="block text-sm font-medium">Alasan<textarea required minLength={10} maxLength={500} rows={2} value={paymentReason} onChange={(event) => setPaymentReason(event.target.value)} className="mt-1.5 w-full rounded-lg border border-border bg-background p-3" /></label>
           <button disabled={saving} className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? "Membukukan…" : "Bukukan koreksi pembayaran"}</button>
         </>}

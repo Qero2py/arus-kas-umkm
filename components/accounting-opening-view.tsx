@@ -4,16 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { postOpeningBalances } from "@/app/actions/accounting";
-import { searchAccountingContacts } from "@/app/actions/accounting-credit";
+import { ContactPicker } from "@/components/contact-picker";
 import { PageHeading } from "@/components/page-heading";
 import type { Account, JournalLine } from "@/lib/accounting";
 import { formatDemoDate } from "@/lib/demo-calculations";
 import { formatRupiah } from "@/lib/format";
 import { validateOpeningCreditDetails, type OpeningCreditDetail } from "@/lib/opening-credits";
 
-type ContactMatch = { id: string; name: string; kind: "customer" | "supplier" | "both" };
 type CreditDraft = Omit<OpeningCreditDetail, "amount"> & {
-  key: string; contactQuery: string; matches: ContactMatch[]; amount: string;
+  key: string; amount: string;
 };
 
 export function AccountingOpeningView({ accounts, today, locked, openingDate }: {
@@ -45,21 +44,9 @@ export function AccountingOpeningView({ accounts, today, locked, openingDate }: 
 
   function addCredit(kind: CreditDraft["kind"]) {
     const controlAccountCode = eligible.find((account) => account.role === (kind === "sale" ? "receivable" : "payable"))?.code ?? "";
-    setCredits((current) => [...current, { key: crypto.randomUUID(), kind, contactId: "", contactQuery: "",
-      matches: [], documentNo: "", issueDate: date, dueDate: date,
+    setCredits((current) => [...current, { key: crypto.randomUUID(), kind, contactId: "",
+      documentNo: "", issueDate: date, dueDate: date,
       description: "", amount: "", controlAccountCode }]);
-  }
-
-  async function findContact(item: CreditDraft) {
-    try {
-      const result = await searchAccountingContacts(item.contactQuery, item.kind);
-      if (!result.ok) { setError(result.message); return; }
-      updateCredit(item.key, { matches: result.contacts });
-      if (!result.contacts.length) setError("Kontak tidak ditemukan. Tambahkan dahulu pada halaman Kontak.");
-      else setError("");
-    } catch {
-      setError("Pencarian kontak belum berhasil. Coba lagi.");
-    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -140,12 +127,7 @@ export function AccountingOpeningView({ accounts, today, locked, openingDate }: 
             <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">{item.kind === "sale" ? "Piutang pelanggan" : "Utang pemasok"}</h3>
               <button type="button" onClick={() => setCredits((current) => current.filter((row) => row.key !== item.key))} className="text-xs font-semibold text-[#812e22]">Hapus</button></div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2"><label className="text-xs font-medium">Cari nama pihak<input value={item.contactQuery} onChange={(event) => updateCredit(item.key, { contactQuery: event.target.value, contactId: "", matches: [] })}
-                placeholder="Ketik sedikitnya dua huruf" className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" /></label>
-                <button type="button" onClick={() => findContact(item)} className="mt-2 min-h-9 rounded-lg border border-border px-3 text-xs font-semibold">Cari kontak</button></div>
-              <label className="text-xs font-medium">Pihak<select value={item.contactId} onChange={(event) => updateCredit(item.key, { contactId: event.target.value })} required className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
-                <option value="">Pilih kontak</option>{item.matches.map((match) => <option key={match.id} value={match.id}>{match.name}</option>)}
-              </select></label>
+              <div className="sm:col-span-2"><ContactPicker kind={item.kind} value={item.contactId} onChange={(contactId) => updateCredit(item.key, { contactId })} /></div>
               <label className="text-xs font-medium">Akun {item.kind === "sale" ? "piutang" : "utang"}<select value={item.controlAccountCode} onChange={(event) => updateCredit(item.key, { controlAccountCode: event.target.value })} required className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
                 {eligible.filter((account) => account.role === (item.kind === "sale" ? "receivable" : "payable"))
                   .map((account) => <option key={account.code} value={account.code}>{account.code} · {account.name}</option>)}

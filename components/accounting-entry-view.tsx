@@ -23,7 +23,7 @@ function AccountSelect({ label, role, value, onChange, accounts }: {
   return <label className="block text-sm font-medium">{label}
     <select value={value} onChange={(event) => onChange(event.target.value)} required
       className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm">
-      <option value="">Pilih akun</option>
+      <option value="" disabled hidden>Pilih akun</option>
       {options.map((account) => <option key={account.code} value={account.code}>{account.code} · {account.name}</option>)}
     </select>
   </label>;

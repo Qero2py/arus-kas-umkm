@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
-import { createAccountingCreditDocument, recordAccountingCreditPayment, searchAccountingContacts } from "@/app/actions/accounting-credit";
+import { createAccountingCreditDocument, recordAccountingCreditPayment } from "@/app/actions/accounting-credit";
+import { ContactPicker } from "@/components/contact-picker";
 import { PageHeading } from "@/components/page-heading";
 import type { Account } from "@/lib/accounting";
 import { formatRupiah } from "@/lib/format";
-import type { AccountingContact, CreditDocument } from "@/lib/supabase/accounting-credit";
+import type { CreditDocument } from "@/lib/supabase/accounting-credit";
 
 const fieldClass = "mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary";
 const todayPlus = (today: string, days: number) => {
@@ -23,7 +24,7 @@ function AccountChoice({ label, role, roles, accounts, value, onChange }: {
   const allowed = roles ?? (role ? [role] : []);
   return <label className="block text-sm font-medium">{label}
     <select className={fieldClass} value={value} onChange={(event) => onChange(event.target.value)} required>
-      <option value="">Pilih akun</option>
+      {!value && <option value="" disabled hidden>Pilih akun</option>}
       {accounts.filter((account) => account.active && allowed.includes(account.role)).map((account) =>
         <option key={account.code} value={account.code}>{account.code} · {account.name}</option>)}
     </select>
@@ -36,8 +37,6 @@ export function AccountingCreditView({ documents, accounts, businessName, invent
 }) {
   const router = useRouter();
   const [kind] = useState<"sale" | "purchase">("purchase");
-  const [contactQuery, setContactQuery] = useState("");
-  const [contacts, setContacts] = useState<Pick<AccountingContact, "id" | "name" | "kind">[]>([]);
   const [contactId, setContactId] = useState("");
   const [documentNo, setDocumentNo] = useState("");
   const [issueDate, setIssueDate] = useState(today);
@@ -60,22 +59,6 @@ export function AccountingCreditView({ documents, accounts, businessName, invent
   const [paymentMessage, setPaymentMessage] = useState("");
   const paymentId = useRef<string | null>(null);
   const selectedDocument = documents.find((item) => item.id === paymentDocumentId);
-
-  async function findContacts() {
-    setDocumentError("");
-    setContacts([]);
-    setContactId("");
-    try {
-      const result = await searchAccountingContacts(contactQuery, kind);
-      if (!result.ok) setDocumentError(result.message);
-      else {
-        setContacts(result.contacts);
-        if (!result.contacts.length) setDocumentError("Kontak tidak ditemukan. Tambahkan melalui halaman Kontak.");
-      }
-    } catch {
-      setDocumentError("Kontak belum dapat dicari. Periksa koneksi lalu coba lagi.");
-    }
-  }
 
   async function createDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -150,14 +133,7 @@ export function AccountingCreditView({ documents, accounts, businessName, invent
         <h2 className="text-base font-semibold">Buat tagihan pembelian tempo</h2>
         <p className="mt-1 text-xs text-muted-foreground">Siapkan <Link href="/accounting/contacts" className="font-semibold text-primary underline">kontak</Link> dan saldo pembuka sebelum transaksi pertama.</p>
         <form onSubmit={createDocument} className="mt-5 space-y-4">
-          <div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-sm font-medium">Cari {kind === "sale" ? "pelanggan" : "pemasok"}
-            <input value={contactQuery} onChange={(event) => setContactQuery(event.target.value)} minLength={2} maxLength={80}
-              placeholder="Ketik sedikitnya dua huruf" className={fieldClass} /></label>
-            <button type="button" onClick={findContacts} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-primary">Cari</button></div>
-          <label className="block text-sm font-medium">Kontak terpilih<select value={contactId} onChange={(event) => setContactId(event.target.value)} required className={fieldClass}>
-            <option value="">Pilih dari hasil pencarian</option>
-            {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}
-          </select></label>
+          <ContactPicker kind={kind} value={contactId} onChange={setContactId} />
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium">Nomor dokumen<input value={documentNo} onChange={(event) => setDocumentNo(event.target.value.toUpperCase())}
               required maxLength={40} pattern="[A-Z0-9][A-Z0-9._/-]{0,39}" placeholder={kind === "sale" ? "INV-001" : "BILL-001"} className={fieldClass} /></label>
@@ -188,7 +164,7 @@ export function AccountingCreditView({ documents, accounts, businessName, invent
           <label className="block text-sm font-medium">Dokumen<select value={paymentDocumentId} onChange={(event) => {
             setPaymentDocumentId(event.target.value); setPaidAmount(""); paymentId.current = null;
           }} required className={fieldClass}>
-            <option value="">Pilih dokumen yang belum lunas</option>
+            {!paymentDocumentId && <option value="" disabled hidden>Pilih dokumen yang belum lunas</option>}
             {documents.filter((item) => item.outstanding > 0).map((item) => <option key={item.id} value={item.id}>
               {item.documentNo} · {item.contactName} · sisa {formatRupiah(item.outstanding)}
             </option>)}
