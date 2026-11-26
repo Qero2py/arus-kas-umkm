@@ -12,7 +12,7 @@ The `/accounting/statements` route shows draft income and financial-position sta
 
 ## Stack
 
-Next.js 16, React 19, Tailwind CSS 4, Supabase Auth and PostgreSQL with Row Level Security. The application is deployed on Vercel at [arus-kas-umkm.vercel.app](https://arus-kas-umkm.vercel.app).
+Next.js 16, React 19, Tailwind CSS 4, Supabase Auth and PostgreSQL with Row Level Security. The production application is at [www.arus-kas.online](https://www.arus-kas.online).
 
 ## Local setup
 

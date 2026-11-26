@@ -1,6 +1,6 @@
 # Panduan demo produksi
 
-Buka [arus-kas-umkm.vercel.app](https://arus-kas-umkm.vercel.app), pilih **Masuk**, lalu gunakan akun pemilik `arus.demo.c03ae169@example.org` dan kata sandi yang sudah dibagikan kepada pemilik proyek. Akun ini memiliki akses ke **Kedai Contoh Arus (Data Demo)**. Nama kedai hanya contoh; fitur akuntansi dirancang untuk beragam jenis UMKM.
+Buka [www.arus-kas.online](https://www.arus-kas.online), pilih **Masuk**, lalu gunakan akun pemilik `arus.demo.c03ae169@example.org` dan kata sandi yang sudah dibagikan kepada pemilik proyek. Akun ini memiliki akses ke **Kedai Contoh Arus (Data Demo)**. Nama kedai hanya contoh; fitur akuntansi dirancang untuk beragam jenis UMKM.
 
 Data pembuka akuntansi bertanggal 30 Oktober 2026. Buku kas lama tetap tersedia sebagai riwayat terpisah. Saldo pembuka akuntansi Rp6.802.000 kas/bank, Rp60.000 piutang, Rp400.000 utang, dan Rp6.462.000 modal. Setelah transaksi contoh hingga November, saldo yang diverifikasi pada 26 November 2026 adalah kas/bank Rp6.792.000, piutang Rp196.000, utang Rp580.000, persediaan Rp130.200, dan aset tetap bruto Rp360.000. Angka akan berubah bila akun demo dipakai untuk mencatat transaksi baru.
 
