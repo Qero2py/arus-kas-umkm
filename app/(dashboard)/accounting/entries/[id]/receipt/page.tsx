@@ -20,9 +20,9 @@ export default async function CashReceiptPage({ params, searchParams }: {
   const item = result.receipt;
   const pdfUrl = `/accounting/entries/${id}/receipt/pdf?paper=${paper}`;
   return <>
-    <PageHeading eyebrow="Kas & bank · Struk" title={`Struk ${item.receiptNo}`}
+    <PageHeading eyebrow="Kasir · Struk" title={`Struk ${item.receiptNo}`}
       description="Bukti penjualan tunai dari jurnal yang telah dibukukan. Pemilik dapat melihat seluruh struk, pengelola hanya struk yang dibuatnya." />
-    <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-primary"><Link href="/transactions" className="underline">Kembali ke buku kas</Link><Link href={`/accounting/entries/${id}/receipt?paper=58`} className={paper === 58 ? "underline" : ""}>Kertas 58 mm</Link><Link href={`/accounting/entries/${id}/receipt?paper=80`} className={paper === 80 ? "underline" : ""}>Kertas 80 mm</Link></div>
+    <div className="mb-4 flex flex-wrap gap-4 text-sm font-semibold text-primary"><Link href="/cashier" className="underline">Kembali ke Kasir</Link><Link href={`/accounting/entries/${id}/receipt?paper=58`} className={paper === 58 ? "underline" : ""}>Kertas 58 mm</Link><Link href={`/accounting/entries/${id}/receipt?paper=80`} className={paper === 80 ? "underline" : ""}>Kertas 80 mm</Link></div>
     <PrintableDocumentActions kind="struk" pdfUrl={pdfUrl} documentNo={item.receiptNo} businessName={item.businessName} />
     <article className="invoice-paper mx-auto border border-border bg-white p-5 text-black shadow-sm" style={{ width: `${paper}mm`, maxWidth: "100%" }}>
       <h2 className="text-center text-lg font-bold">{item.businessName}</h2><p className="mt-1 text-center text-xs font-semibold uppercase tracking-wide">Struk penjualan tunai</p>

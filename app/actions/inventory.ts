@@ -14,13 +14,13 @@ function validDate(value: string) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 function refresh() {
-  for (const path of ["/accounting/inventory", "/accounting/reports", "/accounting/credit"])
+  for (const path of ["/accounting/inventory", "/accounting/reports", "/accounting/credit", "/cashier", "/transactions"])
     revalidatePath(path);
 }
-async function owner() {
+async function owner(allowManager = false) {
   const context = await ownerContext();
-  if (context.status !== "ok" || context.role !== "owner")
-    return { ok: false as const, message: "Hanya pemilik yang dapat mengelola persediaan." };
+  if (context.status !== "ok" || (!allowManager && context.role !== "owner"))
+    return { ok: false as const, message: "Akun ini tidak dapat mengelola persediaan." };
   return { ok: true as const, context };
 }
 
@@ -100,7 +100,7 @@ export async function postInventoryEvent(input: {
     || (input.kind === "opname" && !code.test(input?.expenseAccountCode ?? ""))
     || invalidPayment)
     return { ok: false as const, message: "Periksa produk, tanggal, kuantitas, nominal, pembayaran, dan akun." };
-  const user = await owner();
+  const user = await owner(input.kind === "sale" && input.payment === "cash");
   if (!user.ok) return user;
   const { error } = await user.context.supabase.rpc("post_inventory_event", {
     p_business_id: user.context.business.id, p_event_id: input.id,
@@ -115,8 +115,13 @@ export async function postInventoryEvent(input: {
     : error.code === "23514"
       ? "Transaksi ditolak: periksa stok tersedia, urutan tanggal, akun, dan kecocokan nilai persediaan dengan buku besar."
       : "Transaksi stok belum dibukukan. Periksa data dan koneksi lalu coba lagi." };
+  const movement = await user.context.supabase.rpc("get_cashier_sale_result", {
+    p_business_id: user.context.business.id, p_event_id: input.id,
+  });
+  const identifiers = movement.data as { journalId?: string | null; documentId?: string | null } | null;
   refresh();
-  return { ok: true as const };
+  return { ok: true as const, journalId: identifiers?.journalId ?? "",
+    documentId: identifiers?.documentId ?? "" };
 }
 
 export async function correctCashInventoryEvent(input: {

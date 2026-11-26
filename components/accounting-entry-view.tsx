@@ -31,7 +31,7 @@ function AccountSelect({ label, role, value, onChange, accounts }: {
 
 export function AccountingEntryView({ accounts, today, role }: { accounts: Account[]; today: string; role: "owner" | "manager" }) {
   const active = (role: Account["role"]) => accounts.find((account) => account.active && account.role === role)?.code ?? "";
-  const [type, setType] = useState<EventType>("cash_sale");
+  const [type, setType] = useState<EventType>(role === "owner" ? "cash_expense" : "cash_sale");
   const [date, setDate] = useState(today);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -93,13 +93,14 @@ export function AccountingEntryView({ accounts, today, role }: { accounts: Accou
 
   return <>
     <PageHeading eyebrow="Kegiatan usaha · Input harian" title={role === "owner" ? "Catat transaksi" : "Catat penjualan tunai"}
-      description="Pilih jenis transaksi, akun, dan nominal. Sistem membentuk pasangan debit dan kredit secara otomatis." />
+      description={role === "owner" ? "Catat biaya, modal, prive, dan transfer di sini. Penjualan pelanggan dicatat melalui Kasir agar produk, stok, dan bukti transaksi tersambung." : "Catat penjualan tunai dan cetak struk. Pemilik mengelola produk, stok, dan penjualan tempo."} />
+    {role === "owner" && <p className="mb-5 rounded-xl border border-[#e7dfca] bg-[#f8f3e8] p-4 text-sm">Melayani pelanggan? <Link href="/cashier" className="font-semibold text-primary underline">Buka Kasir</Link> untuk penjualan tunai atau tempo.</p>}
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.8fr)]">
       <form onSubmit={submit} className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
         <label className="block text-sm font-medium">Jenis transaksi
           <select value={type} onChange={(event) => { setType(event.target.value as EventType); sourceId.current = null; setError(""); setLastSaleJournalId(""); }}
             className="mt-1.5 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm">
-            {events.filter((item) => role === "owner" || item.type === "cash_sale").map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
+            {events.filter((item) => role === "owner" ? item.type !== "cash_sale" : item.type === "cash_sale").map((item) => <option key={item.type} value={item.type}>{item.label}</option>)}
           </select>
         </label>
         <div className="grid gap-4 sm:grid-cols-2">

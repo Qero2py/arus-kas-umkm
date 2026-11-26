@@ -35,7 +35,7 @@ export function AccountingCreditView({ documents, accounts, businessName, invent
   inventoryActive: boolean; assetActive: boolean; today: string;
 }) {
   const router = useRouter();
-  const [kind, setKind] = useState<"sale" | "purchase">("sale");
+  const [kind] = useState<"sale" | "purchase">("purchase");
   const [contactQuery, setContactQuery] = useState("");
   const [contacts, setContacts] = useState<Pick<AccountingContact, "id" | "name" | "kind">[]>([]);
   const [contactId, setContactId] = useState("");
@@ -143,19 +143,13 @@ export function AccountingCreditView({ documents, accounts, businessName, invent
 
   return <>
     <PageHeading eyebrow={`Akuntansi · ${businessName}`} title="Dokumen tempo & pelunasan"
-      description="Catat penjualan atau pembelian tempo dan terima atau bayar cicilan. Pendapatan atau pembelian diakui saat dokumen dibuat; pelunasan hanya mengubah kas dan piutang atau utang." />
+      description="Kelola tagihan dan pelunasan pelanggan maupun pemasok. Penjualan tempo dibuat melalui Kasir; pembelian tempo dibuat di sini." />
+    <p className="mb-5 rounded-xl border border-[#e7dfca] bg-[#f8f3e8] p-4 text-sm">Membuat bon untuk pelanggan? <Link href="/cashier" className="font-semibold text-primary underline">Buka Kasir</Link> agar produk dan stok ikut tercatat.</p>
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
-        <h2 className="text-base font-semibold">Buat dokumen tempo</h2>
+        <h2 className="text-base font-semibold">Buat tagihan pembelian tempo</h2>
         <p className="mt-1 text-xs text-muted-foreground">Siapkan <Link href="/accounting/contacts" className="font-semibold text-primary underline">kontak</Link> dan saldo pembuka sebelum transaksi pertama.</p>
         <form onSubmit={createDocument} className="mt-5 space-y-4">
-          <label className="block text-sm font-medium">Jenis dokumen<select value={kind} onChange={(event) => {
-            setKind(event.target.value as "sale" | "purchase"); setContactId(""); setContacts([]);
-            setRecognition(""); setControl(""); documentId.current = null;
-          }} className={fieldClass}>
-            <option value="sale">Penjualan tempo → piutang</option>
-            <option value="purchase">Pembelian tempo → utang</option>
-          </select></label>
           <div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-sm font-medium">Cari {kind === "sale" ? "pelanggan" : "pemasok"}
             <input value={contactQuery} onChange={(event) => setContactQuery(event.target.value)} minLength={2} maxLength={80}
               placeholder="Ketik sedikitnya dua huruf" className={fieldClass} /></label>

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { formatQuantity } from "@/lib/inventory";
 import { ownerContext } from "@/lib/supabase/workspace";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -20,13 +21,21 @@ export async function loadInvoice(id: string) {
     .eq("id", id).eq("business_id", context.business.id).maybeSingle();
   if (document.error || !document.data || document.data.kind !== "sale" || !document.data.recognition_account_id)
     return { ok: false as const, message: "Invoice penjualan tidak ditemukan." };
-  const [contact, payments] = await Promise.all([
+  const [contact, payments, movement] = await Promise.all([
     context.supabase.from("accounting_contacts").select("phone,address")
       .eq("id", document.data.contact_id).eq("business_id", context.business.id).maybeSingle(),
     context.supabase.from("accounting_credit_payments").select("amount")
       .eq("document_id", id).eq("business_id", context.business.id),
+    context.supabase.from("inventory_movements").select("product_id,qty_delta_milli")
+      .eq("credit_document_id", id).eq("business_id", context.business.id)
+      .eq("event_kind", "sale").maybeSingle(),
   ]);
-  if (contact.error || payments.error) return { ok: false as const, message: "Rincian invoice belum dapat dimuat." };
+  if (contact.error || payments.error || movement.error) return { ok: false as const, message: "Rincian invoice belum dapat dimuat." };
+  const product = movement.data ? await context.supabase.from("inventory_products")
+    .select("name,unit").eq("business_id", context.business.id)
+    .eq("id", movement.data.product_id).maybeSingle() : null;
+  if (product?.error || (movement.data && !product?.data))
+    return { ok: false as const, message: "Barang pada invoice belum dapat dimuat." };
   try {
     const amount = safeAmount(document.data.amount);
     const paid = (payments.data ?? []).reduce((sum, row) => sum + safeAmount(row.amount), 0);
@@ -34,7 +43,10 @@ export async function loadInvoice(id: string) {
     return { ok: true as const, invoice: {
       id, businessName: context.business.name,
       documentNo: document.data.document_no, issueDate: document.data.issue_date,
-      dueDate: document.data.due_date, description: document.data.description,
+      dueDate: document.data.due_date,
+      description: movement.data && product?.data
+        ? `${formatQuantity(Math.abs(Number(movement.data.qty_delta_milli)))} ${product.data.unit} × ${product.data.name}`
+        : document.data.description,
       customerName: document.data.contact_name, phone: contact.data?.phone ?? "",
       address: contact.data?.address ?? "", amount, paid, outstanding: amount - paid,
     } };

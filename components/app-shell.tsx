@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeftRight, BarChart3, BookOpenText, Boxes, ChartNoAxesCombined, ChevronRight,
   CircleDollarSign, ClipboardList, ContactRound, FileChartColumn, Landmark,
-  LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, WalletCards, X,
+  LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, ShoppingCart, WalletCards, X,
   type LucideIcon,
 } from "lucide-react";
 import { signOut } from "@/app/actions/workspace";
@@ -22,6 +22,7 @@ const sections: NavSection[] = [
     { href: "/projection", label: "Proyeksi kas", icon: ChartNoAxesCombined, ownerOnly: true },
   ] },
   { title: "Kegiatan usaha", items: [
+    { href: "/cashier", label: "Kasir", icon: ShoppingCart, liveOnly: true },
     { href: "/transactions", label: "Kas & bank", icon: ArrowLeftRight },
     { href: "/accounting/credit", label: "Tagihan tempo", icon: CircleDollarSign, liveOnly: true, ownerOnly: true },
     { href: "/accounting/inventory", label: "Produk & stok", icon: Boxes, liveOnly: true, ownerOnly: true },

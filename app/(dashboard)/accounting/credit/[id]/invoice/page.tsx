@@ -20,12 +20,12 @@ export default async function InvoicePage({ params, searchParams }: {
   const item = result.invoice;
   const pdfUrl = `/accounting/credit/${id}/invoice/pdf?paper=${paper}`;
   return <>
-    <PageHeading eyebrow="Tagihan tempo · Invoice" title={`Invoice ${item.documentNo}`}
+    <PageHeading eyebrow="Kasir · Bon tempo" title={`Bon / invoice ${item.documentNo}`}
       description="Pratinjau dari dokumen penjualan yang telah dibukukan. Pembayaran dan sisa tagihan mengikuti data terbaru." />
     <div className="invoice-control mb-4 flex flex-wrap gap-4 text-sm font-semibold text-primary"><Link href="/accounting/credit" className="underline">Kembali ke tagihan</Link><Link href={`/accounting/credit/${id}/invoice?paper=58`} className={paper === 58 ? "underline" : ""}>Kertas 58 mm</Link><Link href={`/accounting/credit/${id}/invoice?paper=80`} className={paper === 80 ? "underline" : ""}>Kertas 80 mm</Link></div>
     <PrintableDocumentActions kind="invoice" pdfUrl={pdfUrl} phone={item.phone} documentNo={item.documentNo} businessName={item.businessName} />
     <article className="invoice-paper mx-auto border border-border bg-white p-5 text-black shadow-sm" style={{ width: `${paper}mm`, maxWidth: "100%" }}>
-      <h2 className="text-center text-lg font-bold">{item.businessName}</h2><p className="mt-1 text-center text-xs font-semibold uppercase tracking-wide">Invoice penjualan</p>
+      <h2 className="text-center text-lg font-bold">{item.businessName}</h2><p className="mt-1 text-center text-xs font-semibold uppercase tracking-wide">Bon / invoice penjualan</p>
       <div className="my-4 border-t border-dashed border-black/50" />
       <dl className="space-y-1 text-xs"><div className="flex justify-between gap-2"><dt>No.</dt><dd className="text-right font-semibold">{item.documentNo}</dd></div><div className="flex justify-between gap-2"><dt>Tanggal</dt><dd>{formatDemoDate(item.issueDate)}</dd></div><div className="flex justify-between gap-2"><dt>Jatuh tempo</dt><dd>{formatDemoDate(item.dueDate)}</dd></div></dl>
       <div className="my-4 border-t border-dashed border-black/50" />

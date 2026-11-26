@@ -172,12 +172,12 @@ export function InventoryView({ businessName, products, openings, bookDate, acco
         </form>
       </section> : <section className="h-fit rounded-xl border border-border bg-card p-5 sm:p-6">
         <h2 className="text-base font-semibold">Catat pergerakan stok</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">Stok aktif sejak {bookDate}. Tanggal per produk harus berurutan. Nominal beli/jual adalah total transaksi, bukan harga per unit.</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">Stok aktif sejak {bookDate}. Tanggal per produk harus berurutan. Pembelian dan opname dicatat di sini; penjualan pelanggan melalui <Link href="/cashier" className="font-semibold text-primary underline">Kasir</Link>.</p>
         <form onSubmit={submitEvent} className="mt-5 space-y-4">
           <label className="block text-sm font-medium">Jenis transaksi<select value={eventKind} onChange={(event) => {
             setEventKind(event.target.value as EventKind); setContacts([]); setContactId(""); eventId.current = null;
           }} className={field}>
-            <option value="purchase">Pembelian stok</option><option value="sale">Penjualan stok</option><option value="opname">Stok opname</option>
+            <option value="purchase">Pembelian stok</option><option value="opname">Stok opname</option>
           </select></label>
           <label className="block text-sm font-medium">Produk stok pada halaman ini<select value={selectedProduct?.id ?? ""} onChange={(event) => {
             setEventProductId(event.target.value); eventId.current = null;

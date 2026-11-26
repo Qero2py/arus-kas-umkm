@@ -6,8 +6,8 @@ import { randomUUID } from "node:crypto";
 
 const root = resolve(import.meta.dirname, "..");
 const mode = process.argv[2];
-if (!["dry-run", "apply", "test", "test-foundation", "test-credit", "test-stock", "test-asset", "test-opening", "advisors", "validate"].includes(mode))
-  throw new Error("Use dry-run, apply, test, test-foundation, test-credit, test-stock, test-asset, test-opening, advisors, or validate.");
+if (!["dry-run", "apply", "test", "test-foundation", "test-credit", "test-stock", "test-asset", "test-opening", "test-cashier", "advisors", "validate"].includes(mode))
+  throw new Error("Use dry-run, apply, test, test-foundation, test-credit, test-stock, test-asset, test-opening, test-cashier, advisors, or validate.");
 
 function config(path) {
   return Object.fromEntries(readFileSync(path, "utf8").split(/\r?\n/)
@@ -31,12 +31,13 @@ if (mode === "validate") {
   writeFileSync(validationPath, `begin;\n${migration}\nrollback;\nselect 'passed' as migration_validation;\n`, { mode: 0o600 });
 }
 
-const args = ["test", "test-foundation", "test-credit", "test-stock", "test-asset", "test-opening"].includes(mode)
+const args = ["test", "test-foundation", "test-credit", "test-stock", "test-asset", "test-opening", "test-cashier"].includes(mode)
   ? ["supabase", "db", "query", "--linked", "--project-ref", env.SUPABASE_DEV_PROJECT_REF,
     "--file", resolve(root, mode === "test" ? "tests/accounting_period_smoke.sql"
       : mode === "test-foundation" ? "tests/accounting_database_smoke.sql"
       : mode === "test-credit" ? "tests/accounting_credit_correction_smoke.sql"
       : mode === "test-stock" ? "tests/accounting_inventory_correction_smoke.sql"
+        : mode === "test-cashier" ? "tests/accounting_cashier_smoke.sql"
         : mode === "test-opening" ? "tests/accounting_opening_credit_smoke.sql"
           : "tests/accounting_asset_correction_smoke.sql")]
   : mode === "validate"
