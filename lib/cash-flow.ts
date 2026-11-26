@@ -2,6 +2,16 @@ export type CashMovement = {
   journalId?: string; date: string; category: string; type: "in" | "out"; amount: number;
 };
 
+export const CASH_FLOW_LABELS: Record<string, string> = {
+  cash_sale: "Penjualan tunai", cash_expense: "Biaya operasional", capital_contribution: "Setoran modal",
+  owner_draw: "Prive pemilik", customer_receipt: "Penerimaan piutang", supplier_payment: "Pembayaran utang",
+  credit_payment_correction: "Koreksi pembayaran", asset_purchase: "Pembelian aset",
+  asset_correction: "Koreksi aset", stock_purchase: "Pembelian stok", stock_sale: "Penjualan stok",
+  correction_reversal: "Pembalik koreksi",
+};
+
+export function cashFlowLabel(source: string) { return CASH_FLOW_LABELS[source] ?? source.replaceAll("_", " "); }
+
 function checkedSum(left: number, right: number) {
   const value = left + right;
   if (!Number.isSafeInteger(value)) throw new Error("Nilai arus kas melebihi batas Rupiah yang aman.");

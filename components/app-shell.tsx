@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeftRight, BookOpenText, Boxes, ChartNoAxesCombined, ChevronRight,
   CircleDollarSign, ClipboardList, ContactRound, FileChartColumn, Landmark,
@@ -95,6 +95,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { ready: settingsReady, storageError: settingsError, resetDemo: resetSettings } = useDemoSettings();
   const { ready: ledgerReady, storageError: ledgerError, resetDemo: resetLedger, live, businessName, ownerEmail, role } = useDemoLedger();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const mobileSidebar = useRef<HTMLElement>(null);
   const [resetFailed, setResetFailed] = useState(false);
   const storageUnavailable = settingsError === "unavailable" || ledgerError === "unavailable";
   const storageInvalid = settingsError === "invalid" || ledgerError === "invalid";
@@ -106,9 +108,26 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!mobileOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); };
+    const previousOverflow = document.body.style.overflow;
+    const returnFocusTo = menuButton.current;
+    document.body.style.overflow = "hidden";
+    mobileSidebar.current?.querySelector<HTMLButtonElement>('button[aria-label="Tutup menu"]')?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMobileOpen(false); return; }
+      if (event.key !== "Tab" || !mobileSidebar.current) return;
+      const focusable = [...mobileSidebar.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      returnFocusTo?.focus();
+    };
   }, [mobileOpen]);
 
   function restoreInvalidDemoData() {
@@ -130,14 +149,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     <aside className="sticky top-0 hidden h-screen lg:block"><SidebarContent {...sidebarProps} /></aside>
     {mobileOpen && <div className="fixed inset-0 z-50 lg:hidden">
       <button type="button" className="absolute inset-0 bg-[#122820]/70 backdrop-blur-[2px]" aria-label="Tutup menu" onClick={() => setMobileOpen(false)} />
-      <aside id="mobile-sidebar" role="dialog" aria-modal="true" aria-label="Menu navigasi" className="sidebar-enter relative h-full w-[min(320px,88vw)] shadow-2xl">
+      <aside ref={mobileSidebar} id="mobile-sidebar" role="dialog" aria-modal="true" aria-label="Menu navigasi" className="sidebar-enter relative h-full w-[min(320px,88vw)] shadow-2xl">
         <SidebarContent {...sidebarProps} onNavigate={() => setMobileOpen(false)} />
         <button type="button" onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 grid size-10 place-items-center rounded-xl text-sidebar-foreground hover:bg-sidebar-accent" aria-label="Tutup menu"><X size={20} /></button>
       </aside>
     </div>}
     <div className="min-w-0">
       <header className="sticky top-0 z-30 flex min-h-[68px] items-center gap-3 border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
-        <button type="button" onClick={() => setMobileOpen(true)} className="grid size-11 place-items-center rounded-xl border border-border bg-card text-foreground lg:hidden" aria-label="Buka menu" aria-expanded={mobileOpen} aria-controls="mobile-sidebar"><Menu size={20} /></button>
+        <button ref={menuButton} type="button" onClick={() => setMobileOpen(true)} className="grid size-11 place-items-center rounded-xl border border-border bg-card text-foreground lg:hidden" aria-label="Buka menu" aria-expanded={mobileOpen} aria-controls="mobile-sidebar"><Menu size={20} /></button>
         <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ruang kerja</p><p className="truncate text-sm font-semibold">{currentSection}</p></div>
         <span className="hidden max-w-56 truncate rounded-full border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground sm:block">{live && !dataReady ? "Memuat usaha…" : businessName}</span>
       </header>

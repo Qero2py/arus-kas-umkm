@@ -2,19 +2,13 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ArrowDownLeft, ArrowUpRight, Equal } from "lucide-react";
 import { PageHeading } from "@/components/page-heading";
+import { cashFlowLabel } from "@/lib/cash-flow";
 import { formatDemoDate } from "@/lib/demo-calculations";
 import { formatRupiah } from "@/lib/format";
 import { loadCashFlowReport } from "@/lib/supabase/cash-flow";
 import { todayInJakarta } from "@/lib/supabase/workspace";
 
 type Filters = Promise<{ start?: string | string[]; end?: string | string[] }>;
-const labels: Record<string, string> = {
-  cash_sale: "Penjualan tunai", cash_expense: "Biaya operasional", capital_contribution: "Setoran modal",
-  owner_draw: "Prive pemilik", customer_receipt: "Penerimaan piutang", supplier_payment: "Pembayaran utang",
-  credit_payment_correction: "Koreksi pembayaran", asset_purchase: "Pembelian aset",
-  asset_correction: "Koreksi aset", stock_purchase: "Pembelian stok", stock_sale: "Penjualan stok",
-  correction_reversal: "Pembalik koreksi",
-};
 
 export default function CashFlowPage({ searchParams }: { searchParams: Filters }) {
   return <Suspense fallback={<p role="status">Menghitung arus kas…</p>}><Content searchParams={searchParams} /></Suspense>;
@@ -35,6 +29,10 @@ async function Content({ searchParams }: { searchParams: Filters }) {
       <button type="submit" className="h-11 rounded-lg bg-primary px-5 font-semibold text-primary-foreground">Tampilkan</button>
     </form>
     {!result.ok ? <p role="alert" className="rounded-xl border border-border bg-card p-5 text-sm">{result.message}</p> : <>
+      <div className="mb-5 flex flex-wrap gap-3">
+        <a href={`/accounting/cash-flow/export/pdf?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 text-sm font-semibold text-primary hover:border-primary">Unduh PDF</a>
+        <a href={`/accounting/cash-flow/export/xlsx?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 text-sm font-semibold text-primary hover:border-primary">Unduh Excel</a>
+      </div>
       <div className="mb-6 rounded-2xl border border-border bg-gradient-to-br from-[#edf5eb] to-[#fffaf0] p-5 sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">{result.businessName} · {formatDemoDate(start)}–{formatDemoDate(end)}</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -46,7 +44,7 @@ async function Content({ searchParams }: { searchParams: Filters }) {
         <p className="mt-4 text-xs text-muted-foreground">Saldo akhir dicocokkan dengan seluruh akun kas pada neraca saldo. Transfer internal {formatRupiah(result.report.transfers)} tidak menambah total kas.</p>
       </div>
       <section className="overflow-hidden rounded-xl border border-border bg-card"><div className="border-b border-border p-5"><h2 className="text-lg font-semibold">Rincian menurut sumber</h2><p className="mt-1 text-xs text-muted-foreground">Dari jurnal yang telah dibukukan pada periode pilihan.</p></div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="bg-secondary/60 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3">Sumber transaksi</th><th className="px-4 py-3 text-right">Masuk</th><th className="px-4 py-3 text-right">Keluar</th></tr></thead><tbody className="divide-y divide-border/70">{result.report.groups.map((group) => <tr key={group.source}><th scope="row" className="px-4 py-3 text-left font-medium">{labels[group.source] ?? group.source.replaceAll("_", " ")}</th><td className="px-4 py-3 text-right tabular-nums">{formatRupiah(group.incoming)}</td><td className="px-4 py-3 text-right tabular-nums">{formatRupiah(group.outgoing)}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="bg-secondary/60 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-3">Sumber transaksi</th><th className="px-4 py-3 text-right">Masuk</th><th className="px-4 py-3 text-right">Keluar</th></tr></thead><tbody className="divide-y divide-border/70">{result.report.groups.map((group) => <tr key={group.source}><th scope="row" className="px-4 py-3 text-left font-medium">{cashFlowLabel(group.source)}</th><td className="px-4 py-3 text-right tabular-nums">{formatRupiah(group.incoming)}</td><td className="px-4 py-3 text-right tabular-nums">{formatRupiah(group.outgoing)}</td></tr>)}</tbody></table></div>
       </section>
     </>}
   </>;

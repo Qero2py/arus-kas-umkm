@@ -12,7 +12,7 @@ Data pembuka akuntansi bertanggal 30 Oktober 2026. Catatan kas lama tetap tersed
 4. **Kegiatan usaha → Produk & stok:** periksa produk `Beras Premium Demo`, layanan `Jasa Pesanan Demo`, kartu stok, pembelian, penjualan, HPP rata-rata bergerak, dan penyesuaian stok. Coba koreksi pada mutasi tunai terbaru yang memenuhi syarat.
 5. **Kegiatan usaha → Aset tetap:** periksa dua aset contoh, nilai perolehan, umur manfaat, dan perhitungan penyusutan. November 2026 belum disusutkan agar tombol proses bulan tersebut dapat diuji.
 6. **Laporan → Laporan keuangan:** baca laba rugi, posisi keuangan, gambar persamaan neraca, dan CaLK ringkas. Pilih 26 November 2026, lalu unduh PDF atau Excel. Laporan ini masih draf.
-7. **Laporan → Arus kas aktual:** pilih rentang tanggal setelah pembukuan dimulai. Uang masuk/keluar berasal dari jurnal dan saldo akhir dicocokkan dengan neraca saldo; transfer internal dipisahkan.
+7. **Laporan → Arus kas aktual:** pilih rentang tanggal setelah pembukuan dimulai. Uang masuk/keluar berasal dari jurnal dan saldo akhir dicocokkan dengan neraca saldo; transfer internal dipisahkan. Unduh PDF atau Excel dari angka yang sama.
 8. **Laporan → Jurnal & buku besar:** pilih 26 November 2026, cocokkan total debit/kredit neraca saldo, lalu telusuri mutasi akun.
 9. **Data & pengaturan → Daftar akun dan Saldo pembuka:** periksa 15 akun awal serta rincian saldo awal pelanggan/pemasok. Jurnal pembuka hanya dapat dibuat sekali, sehingga pada akun ini form sudah terkunci.
 10. **Data & pengaturan → Tutup buku & koreksi:** Oktober 2026 sengaja dibiarkan terbuka untuk pengujian koreksi. Penutupan akan mengunci transaksi bulan itu; lakukan setelah percobaan koreksi Oktober selesai. November belum dapat ditutup sebelum bulan berakhir.

@@ -10,7 +10,7 @@ This is a capstone prototype. The cash difference is not accounting profit, and 
 
 The `/accounting/statements` route shows draft income and financial-position statements with prior-year comparisons and concise notes. It checks journal balance and note reconciliation. PDF and Excel exports identify the business, period, generation time, currency, and draft status. `/accounting/cash-flow` shows actual cash flows from journals and reconciles its closing balance to the trial balance. The credit page includes aging buckets for receivables and payables. The demo accounting opening balance reconciles its cash position at 30 October 2026. The sidebar groups summaries, daily work, reports, and settings; the balance equation explains the financial-position report.
 
-Still planned: itemized sales and purchase documents, sales analytics by product/customer, receipt printing and WhatsApp invoice sharing, full cash-flow exports, and final business-specific SAK EMKM review. The current forms book the supported transactions, but the package should not be presented as a fully certified accounting system.
+Still planned: itemized sales and purchase documents, sales analytics by product/customer, receipt printing and WhatsApp invoice sharing, and final business-specific SAK EMKM review. The current forms book the supported transactions, but the package should not be presented as a fully certified accounting system.
 
 ## Stack
 

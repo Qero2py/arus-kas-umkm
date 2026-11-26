@@ -45,7 +45,7 @@ export async function loadAccountingReport(asOf: string, requestedCode: string, 
     p_business_id: context.business.id, p_as_of_date: asOf,
   });
   if (trialError || !Array.isArray(trialData))
-    return { ok: false as const, message: "Neraca saldo belum dapat dimuat dari database development." };
+    return { ok: false as const, message: "Neraca saldo belum dapat dimuat dari database usaha." };
 
   try {
     const balances: TrialBalanceRow[] = trialData.map((row: Record<string, unknown>) => ({
@@ -63,7 +63,7 @@ export async function loadAccountingReport(asOf: string, requestedCode: string, 
       })
       : { data: [], error: null };
     if (ledgerError || !Array.isArray(ledgerData))
-      return { ok: false as const, message: "Buku besar belum dapat dimuat dari database development." };
+      return { ok: false as const, message: "Buku besar belum dapat dimuat dari database usaha." };
     const ledger: LedgerRow[] = ledgerData.slice(0, 100).map((row: Record<string, unknown>) => ({
       entryDate: String(row.entry_date), description: String(row.description),
       sourceType: String(row.source_type), sourceId: String(row.source_id), lineNo: Number(row.line_no),
