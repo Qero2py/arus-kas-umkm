@@ -20,7 +20,7 @@ export default async function InvoicePage({ params, searchParams }: {
   const item = result.invoice;
   const pdfUrl = `/accounting/credit/${id}/invoice/pdf?paper=${paper}`;
   return <>
-    <PageHeading eyebrow="Kasir · Bon tempo" title={`Bon / invoice ${item.documentNo}`}
+    <PageHeading eyebrow="Tagihan tempo · Bon" title={`Bon / invoice ${item.documentNo}`}
       description="Pratinjau dari dokumen penjualan yang telah dibukukan. Pembayaran dan sisa tagihan mengikuti data terbaru." />
     <div className="invoice-control mb-4 flex flex-wrap gap-4 text-sm font-semibold text-primary"><Link href="/accounting/credit" className="underline">Kembali ke tagihan</Link><Link href={`/accounting/credit/${id}/invoice?paper=58`} className={paper === 58 ? "underline" : ""}>Kertas 58 mm</Link><Link href={`/accounting/credit/${id}/invoice?paper=80`} className={paper === 80 ? "underline" : ""}>Kertas 80 mm</Link></div>
     <PrintableDocumentActions kind="invoice" pdfUrl={pdfUrl} phone={item.phone} documentNo={item.documentNo} businessName={item.businessName} />

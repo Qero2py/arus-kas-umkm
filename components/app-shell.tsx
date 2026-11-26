@@ -51,6 +51,7 @@ type SidebarProps = {
 };
 
 function SidebarContent({ pathname, live, role, businessName, ownerEmail, onNavigate, onSignOut }: SidebarProps) {
+  const receiptPath = /^\/accounting\/entries\/[^/]+\/receipt(?:\/|$)/.test(pathname);
   return <div className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
     <div className="flex min-h-[78px] items-center gap-3 border-b border-sidebar-border px-5">
       <Link href="/dashboard" onClick={onNavigate} className="grid size-11 place-items-center rounded-2xl bg-sidebar-primary text-xl font-black text-sidebar-primary-foreground shadow-lg shadow-black/10" aria-label="Arus, ke beranda">a.</Link>
@@ -74,7 +75,8 @@ function SidebarContent({ pathname, live, role, businessName, ownerEmail, onNavi
           <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.17em] text-sidebar-foreground/55">{section.title}</p>
           <div className="space-y-0.5">{items.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
-              || (item.href === "/transactions" && pathname.startsWith("/accounting/entries"));
+              || (item.href === "/cashier" && receiptPath)
+              || (item.href === "/transactions" && pathname.startsWith("/accounting/entries") && !receiptPath);
             const Icon = item.icon;
             return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
               className={`group flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200 motion-safe:hover:translate-x-1 ${active ? "bg-sidebar-primary font-semibold text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground/78 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
@@ -106,8 +108,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const remoteError = settingsError === "remote" || ledgerError === "remote";
   const dataReady = settingsReady && ledgerReady;
   const dataError = storageUnavailable || storageInvalid || remoteError;
+  const receiptPath = /^\/accounting\/entries\/[^/]+\/receipt(?:\/|$)/.test(pathname);
   const currentItem = sections.flatMap((section) => section.items).find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
-  const currentSection = pathname.startsWith("/accounting/entries") ? "Kas & bank" : currentItem?.label ?? "Beranda";
+  const currentSection = receiptPath ? "Kasir" : pathname.startsWith("/accounting/entries") ? "Kas & bank" : currentItem?.label ?? "Beranda";
 
   useEffect(() => {
     if (!mobileOpen) return;
