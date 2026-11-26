@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowLeftRight, BookOpenText, Boxes, ChartNoAxesCombined, ChevronRight,
+  ArrowLeftRight, BarChart3, BookOpenText, Boxes, ChartNoAxesCombined, ChevronRight,
   CircleDollarSign, ClipboardList, ContactRound, FileChartColumn, Landmark,
   LayoutDashboard, LogOut, Menu, Settings2, ShieldCheck, WalletCards, X,
   type LucideIcon,
@@ -31,6 +31,7 @@ const sections: NavSection[] = [
   { title: "Laporan", items: [
     { href: "/accounting/statements", label: "Laporan keuangan", icon: FileChartColumn, liveOnly: true, ownerOnly: true },
     { href: "/accounting/cash-flow", label: "Arus kas aktual", icon: ChartNoAxesCombined, liveOnly: true, ownerOnly: true },
+    { href: "/accounting/sales", label: "Analisis penjualan", icon: BarChart3, liveOnly: true, ownerOnly: true },
     { href: "/accounting/reports", label: "Jurnal & buku besar", icon: BookOpenText, liveOnly: true, ownerOnly: true },
   ] },
   { title: "Data & pengaturan", items: [

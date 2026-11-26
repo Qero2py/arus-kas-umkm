@@ -70,12 +70,21 @@ begin
   if v_gl<>'50000' or v_cash<>'62000' or v_revenue<>'22000' or v_cogs<>'10000' then
     raise exception 'Corrected inventory GL does not match product';
   end if;
+  if not exists(select 1 from public.get_accounting_product_sales(v_business,v_today,v_today) s
+    where s.product_id=v_product and s.quantity_milli='2000'
+      and s.revenue='22000' and s.cogs='10000') then
+    raise exception 'Product sales analytics did not net correction reversals';
+  end if;
   if (select count(*) from public.accounting_inventory_corrections where business_id=v_business)<>3
     or (select count(*) from public.inventory_movements where product_id=v_product
       and event_kind='correction_reversal')<>3 then
     raise exception 'Inventory correction audit is incomplete';
   end if;
   perform set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-0000000000bf',true);
+  begin
+    perform public.get_accounting_product_sales(v_business,v_today,v_today);
+    raise exception 'Non-owner read product sales analytics';
+  exception when insufficient_privilege then null; end;
   if exists(select 1 from public.accounting_inventory_corrections where business_id=v_business) then
     raise exception 'Non-owner read inventory correction audit';
   end if;

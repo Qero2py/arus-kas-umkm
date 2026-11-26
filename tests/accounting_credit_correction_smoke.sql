@@ -45,6 +45,10 @@ begin
   if v_cash<>'110000' or v_receivable<>'80000' or v_revenue<>'90000' then
     raise exception 'Corrected credit GL does not match subledger';
   end if;
+  if not exists(select 1 from public.get_accounting_customer_sales(v_business,v_month,v_today) s
+    where s.contact_id=v_contact and s.document_count=1 and s.revenue='90000') then
+    raise exception 'Customer sales analytics did not use corrected document amount';
+  end if;
   if (select count(*) from public.accounting_credit_document_revisions where business_id=v_business)<>1
     or (select count(*) from public.accounting_credit_payment_revisions where business_id=v_business)<>1
     or (select count(*) from public.accounting_corrections where business_id=v_business
@@ -59,6 +63,10 @@ begin
   exception when check_violation then null;
   end;
   perform set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-0000000000af',true);
+  begin
+    perform public.get_accounting_customer_sales(v_business,v_month,v_today);
+    raise exception 'Non-owner read customer sales analytics';
+  exception when insufficient_privilege then null; end;
   if exists(select 1 from public.accounting_credit_document_revisions where business_id=v_business)
     or exists(select 1 from public.accounting_credit_payment_revisions where business_id=v_business) then
     raise exception 'Non-owner read credit revision audit';

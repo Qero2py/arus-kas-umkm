@@ -13,9 +13,10 @@ Data pembuka akuntansi bertanggal 30 Oktober 2026. Catatan kas lama tetap tersed
 5. **Kegiatan usaha → Aset tetap:** periksa dua aset contoh, nilai perolehan, umur manfaat, dan perhitungan penyusutan. November 2026 belum disusutkan agar tombol proses bulan tersebut dapat diuji.
 6. **Laporan → Laporan keuangan:** baca laba rugi, posisi keuangan, gambar persamaan neraca, dan CaLK ringkas. Pilih 26 November 2026, lalu unduh PDF atau Excel. Laporan ini masih draf.
 7. **Laporan → Arus kas aktual:** pilih rentang tanggal setelah pembukuan dimulai. Uang masuk/keluar berasal dari jurnal dan saldo akhir dicocokkan dengan neraca saldo; transfer internal dipisahkan. Unduh PDF atau Excel dari angka yang sama.
-8. **Laporan → Jurnal & buku besar:** pilih 26 November 2026, cocokkan total debit/kredit neraca saldo, lalu telusuri mutasi akun.
-9. **Data & pengaturan → Daftar akun dan Saldo pembuka:** periksa 15 akun awal serta rincian saldo awal pelanggan/pemasok. Jurnal pembuka hanya dapat dibuat sekali, sehingga pada akun ini form sudah terkunci.
-10. **Data & pengaturan → Tutup buku & koreksi:** Oktober 2026 sengaja dibiarkan terbuka untuk pengujian koreksi. Penutupan akan mengunci transaksi bulan itu; lakukan setelah percobaan koreksi Oktober selesai. November belum dapat ditutup sebelum bulan berakhir.
-11. **Data & pengaturan → Pengaturan usaha dan Hak akses:** periksa batas aman proyeksi dan undangan pengelola. Saldo pembuka akuntansi tidak diedit dari pengaturan. Pengelola dapat mencatat penjualan tunai, tetapi laporan keuangan dan pengaturan tetap khusus pemilik.
+8. **Laporan → Analisis penjualan:** bandingkan barang stok yang terjual dan penjualan tempo per pelanggan. Penjualan tunai tanpa produk atau kontak tidak diatribusikan ke tabel tersebut.
+9. **Laporan → Jurnal & buku besar:** pilih 26 November 2026, cocokkan total debit/kredit neraca saldo, lalu telusuri mutasi akun.
+10. **Data & pengaturan → Daftar akun dan Saldo pembuka:** periksa 15 akun awal serta rincian saldo awal pelanggan/pemasok. Jurnal pembuka hanya dapat dibuat sekali, sehingga pada akun ini form sudah terkunci.
+11. **Data & pengaturan → Tutup buku & koreksi:** Oktober 2026 sengaja dibiarkan terbuka untuk pengujian koreksi. Penutupan akan mengunci transaksi bulan itu; lakukan setelah percobaan koreksi Oktober selesai. November belum dapat ditutup sebelum bulan berakhir.
+12. **Data & pengaturan → Pengaturan usaha dan Hak akses:** periksa batas aman proyeksi dan undangan pengelola. Saldo pembuka akuntansi tidak diedit dari pengaturan. Pengelola dapat mencatat penjualan tunai, tetapi laporan keuangan dan pengaturan tetap khusus pemilik.
 
 Akun demo adalah data bersama. Transaksi, koreksi, dan penutupan yang dibuat melalui aplikasi tersimpan di produksi. Jangan memasukkan data usaha pribadi atau informasi rahasia.
